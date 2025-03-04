@@ -6,5 +6,4 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface EpicRepository extends JpaRepository<Epic, Long> {
-    // You can define custom queries here if needed
 }

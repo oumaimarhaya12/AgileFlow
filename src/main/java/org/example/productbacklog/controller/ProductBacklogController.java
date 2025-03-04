@@ -21,12 +21,7 @@ public class ProductBacklogController {
 
     @PostMapping
     public ResponseEntity<ProductBacklog> createProductBacklog(@RequestBody ProductBacklog productBacklog) {
-        return ResponseEntity.ok(productBacklogService.createProductBacklog(productBacklog));
-    }
-
-    @GetMapping
-    public ResponseEntity<List<ProductBacklog>> getAllProductBacklogs() {
-        return ResponseEntity.ok(productBacklogService.getAllProductBacklogs());
+        return ResponseEntity.ok(productBacklogService.addProductBacklog(productBacklog));
     }
 
     @PutMapping("/{id}")
@@ -38,5 +33,10 @@ public class ProductBacklogController {
     public ResponseEntity<Void> deleteProductBacklog(@PathVariable Long id) {
         productBacklogService.deleteProductBacklog(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{nom}")
+    public ResponseEntity<ProductBacklog> getProductBacklogByNom(@PathVariable String nom) {
+        return ResponseEntity.ok(productBacklogService.findProductBacklogByNom(nom));
     }
 }

@@ -1,6 +1,7 @@
 package org.example.productbacklog.entity;
 
 import jakarta.persistence.*;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -9,52 +10,65 @@ public class ProductBacklog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(nullable = false)
-    private String titreProductBL;
+    private String title;
 
     @OneToMany(mappedBy = "productBacklog", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Epic> epics;
+    private List<Epic> epics = new ArrayList<>();
 
-    // Default constructor
+    @OneToOne
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
+
+    public ProductBacklog(String title, List<Epic> epics, Project project) {
+        this.title = title;
+        if (epics != null) {
+            this.epics = epics;
+        }
+        this.project = project;
+    }
+
     public ProductBacklog() {
     }
 
-    // Constructor with all fields
-    public ProductBacklog(Long id, String titreProductBL, List<Epic> epics) {
-        this.id = id;
-        this.titreProductBL = titreProductBL;
-        this.epics = epics;
-    }
-
-    // Getter for titreProductBL
-    public String getTitreProductBL() {
-        return titreProductBL;
-    }
-
-    // Setter for titreProductBL
-    public void setTitreProductBL(String titreProductBL) {
-        this.titreProductBL = titreProductBL;
-    }
-
-    // Getter for id
-    public Long getId() {
+    // Getter and Setter methods for 'id'
+    public Integer getId() {
         return id;
     }
 
-    // Setter for id
-    public void setId(Long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
-    // Getter for epics
+    // Getter and Setter methods for 'title'
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    // Getter and Setter methods for 'epics'
     public List<Epic> getEpics() {
         return epics;
     }
 
-    // Setter for epics
     public void setEpics(List<Epic> epics) {
-        this.epics = epics;
+        this.epics.clear();
+        if (epics != null) {
+            this.epics.addAll(epics);
+        }
+    }
+
+    // Getter and Setter methods for 'project'
+    public Project getProject() {
+        return project;
+    }
+
+    public void setProject(Project project) {
+        this.project = project;
     }
 }
