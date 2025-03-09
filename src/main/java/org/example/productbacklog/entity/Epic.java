@@ -5,30 +5,43 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import java.util.ArrayList;
 import java.util.List;
 
+@Entity
+@Table(name = "epic")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "epic")
 public class Epic {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(nullable = false)
-    private String titreEpic;
+    private String title;
 
-    @Column(length = 1000)
-    private String descEpic;
-
-    // Add the ManyToOne relationship to ProductBacklog
     @ManyToOne
-    @JoinColumn(name = "product_backlog_id") // This column should match the foreign key in the Epic table
+    @JoinColumn(name = "product_backlog_id", nullable = false)
     private ProductBacklog productBacklog;
 
     @OneToMany(mappedBy = "epic", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserStory> userStoriesE;
+    private List<UserStory> userStories = new ArrayList<>();
+
+    // Custom constructor without userStories list
+    public Epic(Integer id, String title, ProductBacklog productBacklog) {
+        this.id = id;
+        this.title = title;
+        this.productBacklog = productBacklog;
+    }
+
+    // Custom setter for userStories to maintain consistency
+    public void setUserStories(List<UserStory> userStories) {
+        this.userStories.clear();
+        if (userStories != null) {
+            this.userStories.addAll(userStories);
+        }
+    }
 }

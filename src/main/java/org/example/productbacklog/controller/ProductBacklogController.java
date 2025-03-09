@@ -3,40 +3,54 @@ package org.example.productbacklog.controller;
 import org.example.productbacklog.entity.ProductBacklog;
 import org.example.productbacklog.service.ProductBacklogService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/product-backlogs")
+@RequestMapping("/api/productbacklogs")
 public class ProductBacklogController {
 
-    private final ProductBacklogService productBacklogService;
-
     @Autowired
-    public ProductBacklogController(ProductBacklogService productBacklogService) {
-        this.productBacklogService = productBacklogService;
-    }
+    private ProductBacklogService productBacklogService;
 
     @PostMapping
-    public ResponseEntity<ProductBacklog> createProductBacklog(@RequestBody ProductBacklog productBacklog) {
-        return ResponseEntity.ok(productBacklogService.addProductBacklog(productBacklog));
+    public ResponseEntity<ProductBacklog> addProductBacklog(@RequestBody ProductBacklog productBacklog) {
+        ProductBacklog savedProductBacklog = productBacklogService.addProductBacklog(productBacklog);
+        return new ResponseEntity<>(savedProductBacklog, HttpStatus.CREATED);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ProductBacklog> deleteProductBacklog(@PathVariable Long id) {
+        // Convert Long to Integer
+        ProductBacklog deletedProductBacklog = productBacklogService.deleteProductBacklog(id.intValue());
+        return new ResponseEntity<>(deletedProductBacklog, HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ProductBacklog> updateProductBacklog(@PathVariable Long id, @RequestBody ProductBacklog productBacklog) {
-        return ResponseEntity.ok(productBacklogService.updateProductBacklog(id, productBacklog));
+        // Convert Long to Integer
+        ProductBacklog updatedProductBacklog = productBacklogService.updateProductBacklog(id.intValue(), productBacklog);
+        return new ResponseEntity<>(updatedProductBacklog, HttpStatus.OK);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProductBacklog(@PathVariable Long id) {
-        productBacklogService.deleteProductBacklog(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping
+    public ResponseEntity<List<ProductBacklog>> getAllProductBacklogs() {
+        List<ProductBacklog> productBacklogs = productBacklogService.findAll();
+        return new ResponseEntity<>(productBacklogs, HttpStatus.OK);
     }
 
-    @GetMapping("/{nom}")
-    public ResponseEntity<ProductBacklog> getProductBacklogByNom(@PathVariable String nom) {
-        return ResponseEntity.ok(productBacklogService.findProductBacklogByNom(nom));
+    @GetMapping("/project/{projectId}")
+    public ResponseEntity<List<ProductBacklog>> getProductBacklogsByProject(@PathVariable int projectId) {
+        List<ProductBacklog> productBacklogs = productBacklogService.findByProjectProjectId(projectId);
+        return new ResponseEntity<>(productBacklogs, HttpStatus.OK);
+    }
+
+    @GetMapping("/title/{title}")
+    public ResponseEntity<ProductBacklog> getProductBacklogByTitle(@PathVariable String title) {
+        ProductBacklog productBacklog = productBacklogService.findProductBacklogByNom(title);
+        return new ResponseEntity<>(productBacklog, HttpStatus.OK);
     }
 }

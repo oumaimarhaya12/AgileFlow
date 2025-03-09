@@ -1,6 +1,7 @@
 package org.example.productbacklog.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -10,26 +11,24 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class Project {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer projectId;
+    @Column(name = "project_id") // Match foreign key definition
+    private Integer projectId; // Changed from id to projectId to match DTO
 
-    @Column(nullable = false)
-    private String projectName;
+    @Column(name = "project_name", nullable = false) // Added column name for clarity
+    private String projectName; // Changed from name to projectName to match DTO and repository
 
     @OneToOne(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private ProductBacklog productBacklog;
-
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+    // Additional constructor with just the name
     public Project(String projectName) {
         this.projectName = projectName;
-    }
-
-    // Helper method to manage bidirectional relationship
-    public void setProductBacklog(ProductBacklog productBacklog) {
-        this.productBacklog = productBacklog;
-        if (productBacklog != null) {
-            productBacklog.setProject(this);
-        }
     }
 }

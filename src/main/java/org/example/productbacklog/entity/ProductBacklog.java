@@ -1,11 +1,19 @@
 package org.example.productbacklog.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "product_backlog")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductBacklog {
 
     @Id
@@ -18,10 +26,12 @@ public class ProductBacklog {
     @OneToMany(mappedBy = "productBacklog", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Epic> epics = new ArrayList<>();
 
-    @OneToOne
-    @JoinColumn(name = "project_id", nullable = false)
+    @OneToOne(optional = true)
+    @JoinColumn(name = "project_id", nullable = true,
+            foreignKey = @ForeignKey(name = "FK_PRODUCT_BACKLOG_PROJECT"))
     private Project project;
 
+    // Constructor with fields (in addition to @AllArgsConstructor)
     public ProductBacklog(String title, List<Epic> epics, Project project) {
         this.title = title;
         if (epics != null) {
@@ -30,45 +40,11 @@ public class ProductBacklog {
         this.project = project;
     }
 
-    public ProductBacklog() {
-    }
-
-    // Getter and Setter methods for 'id'
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    // Getter and Setter methods for 'title'
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    // Getter and Setter methods for 'epics'
-    public List<Epic> getEpics() {
-        return epics;
-    }
-
+    // Custom setter for epics to maintain consistency
     public void setEpics(List<Epic> epics) {
         this.epics.clear();
         if (epics != null) {
             this.epics.addAll(epics);
         }
-    }
-
-    // Getter and Setter methods for 'project'
-    public Project getProject() {
-        return project;
-    }
-
-    public void setProject(Project project) {
-        this.project = project;
     }
 }

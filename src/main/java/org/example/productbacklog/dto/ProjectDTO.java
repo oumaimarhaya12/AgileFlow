@@ -1,16 +1,29 @@
 package org.example.productbacklog.dto;
 
-import lombok.Getter;
-import lombok.Setter;
-
-@Getter
-@Setter
 public class ProjectDTO {
-    private int idProjet;
-    private String nomProjet;
+    private Integer idProjet;
+    private String projectName;
 
-    public ProjectDTO(int idProjet, String nomProjet) {
+    // Constructor
+    public ProjectDTO(Integer idProjet, String projectName) {
         this.idProjet = idProjet;
-        this.nomProjet = nomProjet;
+        this.projectName = projectName;
+    }
+
+    // Getters and Setters
+    public Integer getIdProjet() {
+        return idProjet;
+    }
+
+    public void setIdProjet(Integer idProjet) {
+        this.idProjet = idProjet;
+    }
+
+    public String getProjectName() {
+        return projectName;
+    }
+
+    public void setProjectName(String projectName) {
+        this.projectName = projectName;
     }
 }

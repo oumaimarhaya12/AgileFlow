@@ -3,14 +3,16 @@ package org.example.test;
 import org.example.productbacklog.ProductBacklogApplication;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.example.productbacklog.entity.ProductBacklog;
 import org.example.productbacklog.entity.Project;
 import org.example.productbacklog.service.impl.ProductBacklogServiceImpl;
 import org.example.productbacklog.repository.ProjectRepository;
 import org.springframework.test.annotation.DirtiesContext;
+
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,12 +33,13 @@ class ProductBacklogServiceImplTest {
     void init() {
         // Create and save a project first
         project = new Project("Test Project");
-        project = projectRepository.save(project);
+        project = projectRepository.save(project); // Save the project
     }
 
     @Test
     void ajouter() {
-        ProductBacklog productBacklog = new ProductBacklog("Add Test Backlog", null, project);
+        // Create a product backlog with empty epics list and the saved project
+        ProductBacklog productBacklog = new ProductBacklog("Add Test Backlog", new ArrayList<>(), project);
         ProductBacklog result = productBacklogService.addProductBacklog(productBacklog);
         assertNotNull(result);
         assertEquals(productBacklog.getTitle(), result.getTitle());
@@ -45,15 +48,15 @@ class ProductBacklogServiceImplTest {
 
     @Test
     void modifier() {
-        // Create a product backlog with a unique title
-        ProductBacklog productBacklog = new ProductBacklog("Update Test Backlog", null, project);
+        // Create a product backlog with empty epics list and the saved project
+        ProductBacklog productBacklog = new ProductBacklog("Update Test Backlog", new ArrayList<>(), project);
 
         // First add the product backlog to get an ID
         ProductBacklog saved = productBacklogService.addProductBacklog(productBacklog);
 
         // Now update it
         saved.setTitle("Updated Product Backlog");
-        ProductBacklog result = productBacklogService.updateProductBacklog(saved.getId().longValue(), saved);
+        ProductBacklog result = productBacklogService.updateProductBacklog(saved.getId(), saved);
 
         assertNotNull(result);
         assertEquals("Updated Product Backlog", result.getTitle());
@@ -61,9 +64,9 @@ class ProductBacklogServiceImplTest {
 
     @Test
     void find() {
-        // Create a product backlog with a unique title
+        // Create a product backlog with a unique title and the saved project
         String uniqueTitle = "Find Test Backlog";
-        ProductBacklog productBacklog = new ProductBacklog(uniqueTitle, null, project);
+        ProductBacklog productBacklog = new ProductBacklog(uniqueTitle, new ArrayList<>(), project);
 
         // First add the product backlog
         productBacklogService.addProductBacklog(productBacklog);
@@ -76,14 +79,14 @@ class ProductBacklogServiceImplTest {
 
     @Test
     void remover() {
-        // Create a product backlog with a unique title
-        ProductBacklog productBacklog = new ProductBacklog("Remove Test Backlog", null, project);
+        // Create a product backlog with a unique title and the saved project
+        ProductBacklog productBacklog = new ProductBacklog("Remove Test Backlog", new ArrayList<>(), project);
 
         // First add the product backlog to get an ID
         ProductBacklog saved = productBacklogService.addProductBacklog(productBacklog);
 
         // Now delete it
-        ProductBacklog result = productBacklogService.deleteProductBacklog(saved.getId().longValue());
+        ProductBacklog result = productBacklogService.deleteProductBacklog(saved.getId());
 
         assertNotNull(result);
         assertEquals(saved.getId(), result.getId());

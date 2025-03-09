@@ -2,51 +2,49 @@ package org.example.productbacklog.service.impl;
 
 import org.example.productbacklog.dto.ProjectDTO;
 import org.example.productbacklog.entity.Project;
+import org.example.productbacklog.entity.ProductBacklog;
+import org.example.productbacklog.repository.ProjectRepository;
+import org.example.productbacklog.repository.ProductBacklogRepository;
+import org.example.productbacklog.service.ProjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.example.productbacklog.repository.ProjectRepository;
-import org.example.productbacklog.service.ProjectService;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
-@Transactional
 public class ProjectServiceImpl implements ProjectService {
 
     @Autowired
     private ProjectRepository projectRepository;
 
+    @Autowired
+    private ProductBacklogRepository productBacklogRepository;
+
     @Override
+    @Transactional
     public Project addProject(Project project) {
         return projectRepository.save(project);
     }
 
     @Override
-    public Project updateProject(ProjectDTO projectDTO, int projectId) {
-        Optional<Project> projectToUpdate = projectRepository.findById(projectId);
-        if (projectToUpdate.isEmpty()) {
-            throw new IllegalStateException("Le projet n'existe pas");
+    @Transactional
+    public Project updateProject(ProjectDTO projectDTO, int idProjet) {
+        Optional<Project> existingProject = projectRepository.findById(idProjet);
+        if (existingProject.isPresent()) {
+            Project project = existingProject.get();
+            project.setProjectName(projectDTO.getProjectName());
+            return projectRepository.save(project);
         }
-
-        Project existingProject = projectToUpdate.get();
-        // Update the project name if it differs from the DTO's name
-        if (!existingProject.getProjectName().equals(projectDTO.getNomProjet())) {
-            existingProject.setProjectName(projectDTO.getNomProjet());
-        }
-        // Optionally, you can add more fields to update if needed, like description, etc.
-
-        return projectRepository.save(existingProject);
+        return null;
     }
 
     @Override
     public Project getProject(int projectId) {
-        Optional<Project> projectOptional = projectRepository.findById(projectId);
-        if (projectOptional.isEmpty()) {
-            throw new IllegalStateException("Le projet n'existe pas");
-        }
-        return projectOptional.get();
+        return projectRepository.findById(projectId).orElse(null);
     }
 
     @Override
@@ -55,22 +53,76 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional
     public Project deleteProject(int projectId) {
-        Optional<Project> projectOptional = projectRepository.findById(projectId);
-        if (projectOptional.isEmpty()) {
-            throw new IllegalStateException("Le projet n'existe pas");
+        Optional<Project> project = projectRepository.findById(projectId);
+        if (project.isPresent()) {
+            projectRepository.delete(project.get());
+            return project.get();
         }
-        Project projectToDelete = projectOptional.get();
-        projectRepository.delete(projectToDelete);
-        return projectToDelete;
+        return null;
     }
 
     @Override
     public Project getProjectByName(String projectName) {
-        Optional<Project> projectOptional = projectRepository.findFirstByProjectName(projectName);
-        if (projectOptional.isEmpty()) {
-            throw new IllegalStateException("Le projet n'existe pas");
+        return projectRepository.findByProjectName(projectName);
+    }
+
+    @Override
+    @Transactional
+    public boolean linkProjectToBacklog(Integer projectId, Integer backlogId) {
+        Optional<Project> projectOptional = projectRepository.findById(projectId);
+        Optional<ProductBacklog> backlogOptional = productBacklogRepository.findById(backlogId);
+
+        if (projectOptional.isPresent() && backlogOptional.isPresent()) {
+            Project project = projectOptional.get();
+            ProductBacklog backlog = backlogOptional.get();
+
+            project.setProductBacklog(backlog);
+            backlog.setProject(project);
+
+            projectRepository.save(project);
+            productBacklogRepository.save(backlog);
+            return true;
         }
-        return projectOptional.get();
+        return false;
+    }
+
+    @Override
+    @Transactional
+    public boolean unlinkProjectFromBacklog(Integer projectId) {
+        Optional<Project> projectOptional = projectRepository.findById(projectId);
+        if (projectOptional.isPresent()) {
+            Project project = projectOptional.get();
+            ProductBacklog backlog = project.getProductBacklog();
+
+            if (backlog != null) {
+                backlog.setProject(null);
+                project.setProductBacklog(null);
+
+                productBacklogRepository.save(backlog);
+                projectRepository.save(project);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public Map<String, Integer> getProjectStatistics() {
+        Map<String, Integer> stats = new HashMap<>();
+        List<Project> projects = projectRepository.findAll();
+
+        int totalProjects = projects.size();
+        int projectsWithBacklog = (int) projects.stream()
+                .filter(p -> p.getProductBacklog() != null)
+                .count();
+        int projectsWithoutBacklog = totalProjects - projectsWithBacklog;
+
+        stats.put("totalProjects", totalProjects);
+        stats.put("projectsWithBacklog", projectsWithBacklog);
+        stats.put("projectsWithoutBacklog", projectsWithoutBacklog);
+
+        return stats;
     }
 }
