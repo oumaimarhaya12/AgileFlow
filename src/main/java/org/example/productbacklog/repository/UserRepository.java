@@ -18,6 +18,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByRole(User.Role role);
 
+    List<User> findByRoleIn(List<User.Role> roles);
+
+    List<User> findByUsernameContainingOrEmailContaining(String username, String email);
+
+    long countByRole(User.Role role);
+
     @Query("SELECT u FROM User u WHERE u.id IN (SELECT t.assignedUser.id FROM Task t WHERE t.userStory.id = :userStoryId)")
     List<User> findUsersByUserStoryId(@Param("userStoryId") Long userStoryId);
 
@@ -26,6 +32,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT COUNT(t) > 0 FROM Task t WHERE t.assignedUser.id = :userId")
     boolean hasAssignedTasks(@Param("userId") Long userId);
+
+    @Query("SELECT u FROM User u WHERE u.id IN (SELECT p.user.id FROM Project p WHERE p.projectId = :projectId)")
+    List<User> findUsersByProjectId(@Param("projectId") Integer projectId);
 
     boolean existsByEmail(String email);
 
