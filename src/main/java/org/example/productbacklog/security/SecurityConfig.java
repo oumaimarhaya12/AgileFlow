@@ -37,6 +37,7 @@ public class SecurityConfig {
                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                 .requestMatchers("/api/product-owner/**").hasRole("PRODUCT_OWNER")
                                 .requestMatchers("/api/scrum-master/**").hasRole("SCRUM_MASTER")
+                                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                                 .anyRequest().authenticated()
                 );
 
