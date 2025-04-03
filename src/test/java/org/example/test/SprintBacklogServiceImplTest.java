@@ -4,8 +4,10 @@ import org.example.productbacklog.entity.SprintBacklog;
 import org.example.productbacklog.entity.Statut;
 import org.example.productbacklog.entity.Task;
 import org.example.productbacklog.entity.UserStory;
+import org.example.productbacklog.entity.ProductBacklog;
 import org.example.productbacklog.repository.SprintBacklogRepository;
 import org.example.productbacklog.repository.UserStoryRepository;
+import org.example.productbacklog.repository.ProductBacklogRepository;
 import org.example.productbacklog.service.impl.SprintBacklogServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,12 +33,16 @@ public class SprintBacklogServiceImplTest {
     @Mock
     private UserStoryRepository userStoryRepository;
 
+    @Mock
+    private ProductBacklogRepository productBacklogRepository;
+
     @InjectMocks
     private SprintBacklogServiceImpl sprintBacklogService;
 
     private SprintBacklog testSprintBacklog;
     private UserStory testUserStory;
     private Task testTask;
+    private ProductBacklog testProductBacklog;
 
     @BeforeEach
     void setUp() {
@@ -61,6 +67,11 @@ public class SprintBacklogServiceImplTest {
         List<Task> tasks = new ArrayList<>();
         tasks.add(testTask);
         testUserStory.setTasks(tasks);
+
+        testProductBacklog = new ProductBacklog();
+        testProductBacklog.setId(1);
+        testProductBacklog.setTitle("Test Product Backlog");
+        testProductBacklog.setSprintBacklogs(new ArrayList<>());
     }
 
     @Test
@@ -81,6 +92,32 @@ public class SprintBacklogServiceImplTest {
     void createSprintBacklog_EmptyTitle_ThrowsIllegalArgumentException() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> sprintBacklogService.createSprintBacklog(""));
+        verify(sprintBacklogRepository, never()).save(any(SprintBacklog.class));
+    }
+
+    @Test
+    void createSprintBacklog_WithProductBacklogId_ReturnsSprintBacklogWithProductBacklog() {
+        // Arrange
+        when(productBacklogRepository.findById(1)).thenReturn(Optional.of(testProductBacklog));
+        when(sprintBacklogRepository.save(any(SprintBacklog.class))).thenReturn(testSprintBacklog);
+
+        // Act
+        SprintBacklog result = sprintBacklogService.createSprintBacklog("Test Sprint Backlog", 1);
+
+        // Assert
+        assertNotNull(result);
+        verify(productBacklogRepository).save(testProductBacklog);
+        verify(sprintBacklogRepository).save(any(SprintBacklog.class));
+    }
+
+    @Test
+    void createSprintBacklog_WithNonExistingProductBacklogId_ThrowsEntityNotFoundException() {
+        // Arrange
+        when(productBacklogRepository.findById(999)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(EntityNotFoundException.class, () ->
+                sprintBacklogService.createSprintBacklog("Test Sprint Backlog", 999));
         verify(sprintBacklogRepository, never()).save(any(SprintBacklog.class));
     }
 
@@ -124,6 +161,31 @@ public class SprintBacklogServiceImplTest {
     }
 
     @Test
+    void getSprintBacklogsByProductBacklogId_ExistingProductBacklogId_ReturnsSprintBacklogs() {
+        // Arrange
+        testProductBacklog.getSprintBacklogs().add(testSprintBacklog);
+        when(productBacklogRepository.findById(1)).thenReturn(Optional.of(testProductBacklog));
+
+        // Act
+        List<SprintBacklog> result = sprintBacklogService.getSprintBacklogsByProductBacklogId(1);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(testSprintBacklog, result.get(0));
+    }
+
+    @Test
+    void getSprintBacklogsByProductBacklogId_NonExistingProductBacklogId_ThrowsEntityNotFoundException() {
+        // Arrange
+        when(productBacklogRepository.findById(999)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(EntityNotFoundException.class, () ->
+                sprintBacklogService.getSprintBacklogsByProductBacklogId(999));
+    }
+
+    @Test
     void updateSprintBacklog_ExistingId_ReturnsUpdatedSprintBacklog() {
         // Arrange
         when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
@@ -156,6 +218,22 @@ public class SprintBacklogServiceImplTest {
         sprintBacklogService.deleteSprintBacklog(1L);
 
         // Assert
+        verify(sprintBacklogRepository).delete(testSprintBacklog);
+    }
+
+    @Test
+    void deleteSprintBacklog_WithProductBacklog_DetachesAndDeletesSprintBacklog() {
+        // Arrange
+        testSprintBacklog.setProductBacklog(testProductBacklog);
+        testProductBacklog.getSprintBacklogs().add(testSprintBacklog);
+
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+
+        // Act
+        sprintBacklogService.deleteSprintBacklog(1L);
+
+        // Assert
+        verify(productBacklogRepository).save(testProductBacklog);
         verify(sprintBacklogRepository).delete(testSprintBacklog);
     }
 
@@ -206,6 +284,56 @@ public class SprintBacklogServiceImplTest {
     }
 
     @Test
+    void removeUserStoryFromSprintBacklog_UserStoryInSprintBacklog_ReturnsUpdatedSprintBacklog() {
+        // Arrange
+        testUserStory.setSprintBacklog(testSprintBacklog);
+        testSprintBacklog.getUserStories().add(testUserStory);
+
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+        when(userStoryRepository.findById(1L)).thenReturn(Optional.of(testUserStory));
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+
+        // Act
+        SprintBacklog result = sprintBacklogService.removeUserStoryFromSprintBacklog(1L, 1L);
+
+        // Assert
+        verify(userStoryRepository).save(testUserStory);
+        assertEquals(testSprintBacklog, result);
+        assertNull(testUserStory.getSprintBacklog());
+    }
+
+    @Test
+    void removeUserStoryFromSprintBacklog_UserStoryNotInSprintBacklog_ReturnsUnchangedSprintBacklog() {
+        // Arrange
+        testUserStory.setSprintBacklog(null);
+
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+        when(userStoryRepository.findById(1L)).thenReturn(Optional.of(testUserStory));
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+
+        // Act
+        SprintBacklog result = sprintBacklogService.removeUserStoryFromSprintBacklog(1L, 1L);
+
+        // Assert
+        verify(userStoryRepository, never()).save(any(UserStory.class));
+        assertEquals(testSprintBacklog, result);
+    }
+
+    @Test
+    void getUserStoriesInSprintBacklog_ReturnsUserStories() {
+        // Arrange
+        testSprintBacklog.getUserStories().add(testUserStory);
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+
+        // Act
+        List<UserStory> result = sprintBacklogService.getUserStoriesInSprintBacklog(1L);
+
+        // Assert
+        assertEquals(1, result.size());
+        assertEquals(testUserStory, result.get(0));
+    }
+
+    @Test
     void calculateSprintProgress_NoTasks_ReturnsZero() {
         // Arrange
         testSprintBacklog.getUserStories().clear();
@@ -246,5 +374,160 @@ public class SprintBacklogServiceImplTest {
         assertEquals(1L, statusSummary.get(Task.TaskStatus.TO_DO));
         assertEquals(0L, statusSummary.get(Task.TaskStatus.IN_PROGRESS));
         assertEquals(0L, statusSummary.get(Task.TaskStatus.FINISHED));
+    }
+
+    @Test
+    void getUserStoryStatusSummary_ReturnsCorrectCounts() {
+        // Arrange
+        testSprintBacklog.getUserStories().add(testUserStory);
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+
+        // Act
+        Map<Statut, Long> statusSummary = sprintBacklogService.getUserStoryStatusSummary(1L);
+
+        // Assert
+        assertEquals(1L, statusSummary.get(Statut.toDo));
+        assertEquals(0L, statusSummary.get(Statut.blocked));
+        assertEquals(0L, statusSummary.get(Statut.finished));
+        assertEquals(0L, statusSummary.get(Statut.inProgress));
+        assertEquals(0L, statusSummary.get(Statut.inTesting));
+    }
+
+    @Test
+    void getTasksByStatus_ReturnsTasksWithSpecificStatus() {
+        // Arrange
+        testSprintBacklog.getUserStories().add(testUserStory);
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+
+        // Act
+        List<Task> result = sprintBacklogService.getTasksByStatus(1L, Task.TaskStatus.TO_DO);
+
+        // Assert
+        assertEquals(1, result.size());
+        assertEquals(testTask, result.get(0));
+    }
+
+    @Test
+    void countTotalUserStories_ReturnsCorrectCount() {
+        // Arrange
+        when(sprintBacklogRepository.countUserStoriesBySprintBacklogId(1L)).thenReturn(5);
+
+        // Act
+        int count = sprintBacklogService.countTotalUserStories(1L);
+
+        // Assert
+        assertEquals(5, count);
+    }
+
+    @Test
+    void countTotalTasks_ReturnsCorrectCount() {
+        // Arrange
+        testSprintBacklog.getUserStories().add(testUserStory);
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+
+        // Act
+        int count = sprintBacklogService.countTotalTasks(1L);
+
+        // Assert
+        assertEquals(1, count);
+    }
+
+    @Test
+    void assignSprintBacklogToProductBacklog_ValidIds_ReturnsUpdatedSprintBacklog() {
+        // Arrange
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+        when(productBacklogRepository.findById(1)).thenReturn(Optional.of(testProductBacklog));
+        when(sprintBacklogRepository.save(any(SprintBacklog.class))).thenReturn(testSprintBacklog);
+
+        // Act
+        SprintBacklog result = sprintBacklogService.assignSprintBacklogToProductBacklog(1L, 1);
+
+        // Assert
+        assertNotNull(result);
+        verify(productBacklogRepository).save(testProductBacklog);
+        verify(sprintBacklogRepository).save(testSprintBacklog);
+    }
+
+    @Test
+    void assignSprintBacklogToProductBacklog_WithPreviousProductBacklog_DetachesAndAssigns() {
+        // Arrange
+        ProductBacklog previousProductBacklog = new ProductBacklog();
+        previousProductBacklog.setId(2);
+        previousProductBacklog.setTitle("Previous Product Backlog");
+        previousProductBacklog.setSprintBacklogs(new ArrayList<>(Arrays.asList(testSprintBacklog)));
+
+        testSprintBacklog.setProductBacklog(previousProductBacklog);
+
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+        when(productBacklogRepository.findById(1)).thenReturn(Optional.of(testProductBacklog));
+        when(sprintBacklogRepository.save(any(SprintBacklog.class))).thenReturn(testSprintBacklog);
+
+        // Act
+        SprintBacklog result = sprintBacklogService.assignSprintBacklogToProductBacklog(1L, 1);
+
+        // Assert
+        assertNotNull(result);
+        verify(productBacklogRepository).save(previousProductBacklog);
+        verify(productBacklogRepository).save(testProductBacklog);
+        verify(sprintBacklogRepository).save(testSprintBacklog);
+    }
+
+    @Test
+    void assignSprintBacklogToProductBacklog_NonExistingSprintBacklogId_ThrowsEntityNotFoundException() {
+        // Arrange
+        when(sprintBacklogRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(EntityNotFoundException.class, () ->
+                sprintBacklogService.assignSprintBacklogToProductBacklog(999L, 1));
+        verify(productBacklogRepository, never()).save(any(ProductBacklog.class));
+    }
+
+    @Test
+    void assignSprintBacklogToProductBacklog_NonExistingProductBacklogId_ThrowsEntityNotFoundException() {
+        // Arrange
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+        when(productBacklogRepository.findById(999)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(EntityNotFoundException.class, () ->
+                sprintBacklogService.assignSprintBacklogToProductBacklog(1L, 999));
+        verify(sprintBacklogRepository, never()).save(any(SprintBacklog.class));
+    }
+
+    @Test
+    void removeSprintBacklogFromProductBacklog_SprintBacklogWithProductBacklog_ReturnsUpdatedSprintBacklog() {
+        // Arrange
+        testSprintBacklog.setProductBacklog(testProductBacklog);
+        testProductBacklog.getSprintBacklogs().add(testSprintBacklog);
+
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+        when(sprintBacklogRepository.save(any(SprintBacklog.class))).thenReturn(testSprintBacklog);
+
+        // Act
+        SprintBacklog result = sprintBacklogService.removeSprintBacklogFromProductBacklog(1L);
+
+        // Assert
+        assertNotNull(result);
+        assertNull(result.getProductBacklog());
+        verify(productBacklogRepository).save(testProductBacklog);
+        verify(sprintBacklogRepository).save(testSprintBacklog);
+    }
+
+    @Test
+    void removeSprintBacklogFromProductBacklog_SprintBacklogWithoutProductBacklog_ReturnsUnchangedSprintBacklog() {
+        // Arrange
+        testSprintBacklog.setProductBacklog(null);
+
+        when(sprintBacklogRepository.findById(1L)).thenReturn(Optional.of(testSprintBacklog));
+
+        // Act
+        SprintBacklog result = sprintBacklogService.removeSprintBacklogFromProductBacklog(1L);
+
+        // Assert
+        assertNotNull(result);
+        assertNull(result.getProductBacklog());
+        verify(productBacklogRepository, never()).save(any(ProductBacklog.class));
+        verify(sprintBacklogRepository, never()).save(any(SprintBacklog.class));
     }
 }

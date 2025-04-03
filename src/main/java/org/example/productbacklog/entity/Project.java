@@ -24,9 +24,11 @@ public class Project {
 
     @OneToOne(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private ProductBacklog productBacklog;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
+
     // Additional constructor with just the name
     public Project(String projectName) {
         this.projectName = projectName;

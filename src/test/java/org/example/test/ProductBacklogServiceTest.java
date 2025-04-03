@@ -1,94 +1,114 @@
 package org.example.test;
 
 import org.example.productbacklog.ProductBacklogApplication;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.example.productbacklog.entity.ProductBacklog;
-import org.example.productbacklog.entity.Project;
-import org.example.productbacklog.service.impl.ProductBacklogServiceImpl;
-import org.example.productbacklog.repository.ProjectRepository;
+import org.example.productbacklog.entity.SprintBacklog;
+import org.example.productbacklog.service.ProductBacklogService;
+import org.example.productbacklog.service.SprintBacklogService;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = ProductBacklogApplication.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 @Import(TestConfig.class)
-class ProductBacklogServiceImplTest {
+public class ProductBacklogServiceTest {
 
     @Autowired
-    private ProductBacklogServiceImpl productBacklogService;
+    private ProductBacklogService productBacklogService;
 
     @Autowired
-    private ProjectRepository projectRepository;
+    private SprintBacklogService sprintBacklogService;
 
-    private Project project;
+    @Test
+    public void testAddProductBacklog() {
+        ProductBacklog productBacklog = new ProductBacklog("Test Product Backlog", new ArrayList<>(), null);
+        ProductBacklog savedBacklog = productBacklogService.addProductBacklog(productBacklog);
 
-    @BeforeEach
-    void init() {
-        // Create and save a project first
-        project = new Project("Test Project");
-        project = projectRepository.save(project); // Save the project
+        assertNotNull(savedBacklog);
+        assertNotNull(savedBacklog.getId());
+        assertEquals("Test Product Backlog", savedBacklog.getTitle());
     }
 
     @Test
-    void ajouter() {
-        // Create a product backlog with empty epics list and the saved project
-        ProductBacklog productBacklog = new ProductBacklog("Add Test Backlog", new ArrayList<>(), project);
-        ProductBacklog result = productBacklogService.addProductBacklog(productBacklog);
-        assertNotNull(result);
-        assertEquals(productBacklog.getTitle(), result.getTitle());
-        assertNotNull(result.getProject());
+    @Transactional
+    public void testAddSprintBacklogToProductBacklog() {
+        // Create a product backlog
+        ProductBacklog productBacklog = new ProductBacklog("Product Backlog For Sprint", new ArrayList<>(), null);
+        productBacklog = productBacklogService.addProductBacklog(productBacklog);
+
+        // Create a sprint backlog
+        SprintBacklog sprintBacklog = sprintBacklogService.createSprintBacklog("Test Sprint Backlog");
+
+        // Add sprint backlog to product backlog
+        boolean result = productBacklogService.addSprintBacklogToProductBacklog(productBacklog.getId(), sprintBacklog.getId());
+
+        // Verify the sprint backlog was added to the product backlog
+        assertTrue(result);
+
+        // Get the product backlog and verify it contains the sprint backlog
+        List<SprintBacklog> sprintBacklogs = productBacklogService.getAllSprintBacklogsByProductBacklog(productBacklog.getId());
+
+        assertNotNull(sprintBacklogs);
+        assertFalse(sprintBacklogs.isEmpty());
+        assertTrue(sprintBacklogs.stream().anyMatch(sb -> sb.getId().equals(sprintBacklog.getId())));
     }
 
     @Test
-    void modifier() {
-        // Create a product backlog with empty epics list and the saved project
-        ProductBacklog productBacklog = new ProductBacklog("Update Test Backlog", new ArrayList<>(), project);
+    @Transactional
+    public void testRemoveSprintBacklogFromProductBacklog() {
+        // Create a product backlog
+        ProductBacklog productBacklog = new ProductBacklog("Product Backlog For Sprint Removal", new ArrayList<>(), null);
+        productBacklog = productBacklogService.addProductBacklog(productBacklog);
 
-        // First add the product backlog to get an ID
-        ProductBacklog saved = productBacklogService.addProductBacklog(productBacklog);
+        // Create a sprint backlog
+        SprintBacklog sprintBacklog = sprintBacklogService.createSprintBacklog("Sprint To Remove");
 
-        // Now update it
-        saved.setTitle("Updated Product Backlog");
-        ProductBacklog result = productBacklogService.updateProductBacklog(saved.getId(), saved);
+        // Add sprint backlog to product backlog
+        productBacklogService.addSprintBacklogToProductBacklog(productBacklog.getId(), sprintBacklog.getId());
 
-        assertNotNull(result);
-        assertEquals("Updated Product Backlog", result.getTitle());
+        // Remove sprint backlog from product backlog
+        boolean result = productBacklogService.removeSprintBacklogFromProductBacklog(productBacklog.getId(), sprintBacklog.getId());
+
+        // Verify the sprint backlog was removed
+        assertTrue(result);
+
+        // Get the product backlog's sprint backlogs and verify it no longer contains the sprint backlog
+        List<SprintBacklog> sprintBacklogs = productBacklogService.getAllSprintBacklogsByProductBacklog(productBacklog.getId());
+        assertTrue(sprintBacklogs.stream().noneMatch(sb -> sb.getId().equals(sprintBacklog.getId())));
     }
 
     @Test
-    void find() {
-        // Create a product backlog with a unique title and the saved project
-        String uniqueTitle = "Find Test Backlog";
-        ProductBacklog productBacklog = new ProductBacklog(uniqueTitle, new ArrayList<>(), project);
+    @Transactional
+    public void testGetAllSprintBacklogsByProductBacklog() {
+        // Create a product backlog
+        ProductBacklog productBacklog = new ProductBacklog("Product Backlog For Sprint List", new ArrayList<>(), null);
+        productBacklog = productBacklogService.addProductBacklog(productBacklog);
 
-        // First add the product backlog
-        productBacklogService.addProductBacklog(productBacklog);
+        // Create multiple sprint backlogs
+        SprintBacklog sprint1 = sprintBacklogService.createSprintBacklog("Sprint 1");
+        SprintBacklog sprint2 = sprintBacklogService.createSprintBacklog("Sprint 2");
 
-        // Now find it
-        ProductBacklog result = productBacklogService.findProductBacklogByNom(uniqueTitle);
-        assertNotNull(result);
-        assertEquals(uniqueTitle, result.getTitle());
-    }
+        // Add sprint backlogs to product backlog
+        productBacklogService.addSprintBacklogToProductBacklog(productBacklog.getId(), sprint1.getId());
+        productBacklogService.addSprintBacklogToProductBacklog(productBacklog.getId(), sprint2.getId());
 
-    @Test
-    void remover() {
-        // Create a product backlog with a unique title and the saved project
-        ProductBacklog productBacklog = new ProductBacklog("Remove Test Backlog", new ArrayList<>(), project);
+        // Get all sprint backlogs for the product backlog
+        List<SprintBacklog> sprintBacklogs = productBacklogService.getAllSprintBacklogsByProductBacklog(productBacklog.getId());
 
-        // First add the product backlog to get an ID
-        ProductBacklog saved = productBacklogService.addProductBacklog(productBacklog);
-
-        // Now delete it
-        ProductBacklog result = productBacklogService.deleteProductBacklog(saved.getId());
-
-        assertNotNull(result);
-        assertEquals(saved.getId(), result.getId());
+        // Verify the list contains both sprint backlogs
+        assertNotNull(sprintBacklogs);
+        assertEquals(2, sprintBacklogs.size());
+        assertTrue(sprintBacklogs.stream().anyMatch(sb -> sb.getId().equals(sprint1.getId())));
+        assertTrue(sprintBacklogs.stream().anyMatch(sb -> sb.getId().equals(sprint2.getId())));
     }
 }

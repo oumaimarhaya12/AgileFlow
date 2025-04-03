@@ -26,6 +26,9 @@ public class ProductBacklog {
     @OneToMany(mappedBy = "productBacklog", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Epic> epics = new ArrayList<>();
 
+    @OneToMany(mappedBy = "productBacklog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SprintBacklog> sprintBacklogs = new ArrayList<>();
+
     @OneToOne(optional = true)
     @JoinColumn(name = "project_id", nullable = true,
             foreignKey = @ForeignKey(name = "FK_PRODUCT_BACKLOG_PROJECT"))
@@ -45,6 +48,14 @@ public class ProductBacklog {
         this.epics.clear();
         if (epics != null) {
             this.epics.addAll(epics);
+        }
+    }
+
+    // Custom setter for sprintBacklogs to maintain consistency
+    public void setSprintBacklogs(List<SprintBacklog> sprintBacklogs) {
+        this.sprintBacklogs.clear();
+        if (sprintBacklogs != null) {
+            this.sprintBacklogs.addAll(sprintBacklogs);
         }
     }
 }

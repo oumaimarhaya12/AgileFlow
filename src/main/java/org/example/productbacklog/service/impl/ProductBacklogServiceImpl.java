@@ -2,14 +2,19 @@ package org.example.productbacklog.service.impl;
 
 import org.example.productbacklog.entity.ProductBacklog;
 import org.example.productbacklog.entity.Project;
+import org.example.productbacklog.entity.SprintBacklog;
 import org.example.productbacklog.repository.ProductBacklogRepository;
 import org.example.productbacklog.repository.ProjectRepository;
+import org.example.productbacklog.repository.SprintBacklogRepository;
 import org.example.productbacklog.service.ProductBacklogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityNotFoundException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -20,6 +25,9 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
 
     @Autowired
     private ProjectRepository projectRepository;
+
+    @Autowired
+    private SprintBacklogRepository sprintBacklogRepository;
 
     @Override
     @Transactional
@@ -131,5 +139,103 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
     @Override
     public List<ProductBacklog> findAll() {
         return productBacklogRepo.findAll();
+    }
+
+    @Override
+    @Transactional
+    public boolean addSprintBacklogToProductBacklog(Integer productBacklogId, Long sprintBacklogId) {
+        Optional<ProductBacklog> productBacklogOptional = productBacklogRepo.findById(productBacklogId);
+        Optional<SprintBacklog> sprintBacklogOptional = sprintBacklogRepository.findById(sprintBacklogId);
+
+        if (productBacklogOptional.isPresent() && sprintBacklogOptional.isPresent()) {
+            ProductBacklog productBacklog = productBacklogOptional.get();
+            SprintBacklog sprintBacklog = sprintBacklogOptional.get();
+
+            // Check if sprint backlog is already associated with another product backlog
+            if (sprintBacklog.getProductBacklog() != null &&
+                    !sprintBacklog.getProductBacklog().getId().equals(productBacklogId)) {
+                // Remove from previous product backlog
+                ProductBacklog oldProductBacklog = sprintBacklog.getProductBacklog();
+                oldProductBacklog.getSprintBacklogs().remove(sprintBacklog);
+                productBacklogRepo.save(oldProductBacklog);
+            }
+
+            // Set the product backlog for this sprint backlog
+            sprintBacklog.setProductBacklog(productBacklog);
+
+            // Add the sprint backlog to the product backlog's list if not already present
+            if (!productBacklog.getSprintBacklogs().contains(sprintBacklog)) {
+                productBacklog.getSprintBacklogs().add(sprintBacklog);
+            }
+
+            sprintBacklogRepository.save(sprintBacklog);
+            productBacklogRepo.save(productBacklog);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional
+    public boolean removeSprintBacklogFromProductBacklog(Integer productBacklogId, Long sprintBacklogId) {
+        Optional<ProductBacklog> productBacklogOptional = productBacklogRepo.findById(productBacklogId);
+        Optional<SprintBacklog> sprintBacklogOptional = sprintBacklogRepository.findById(sprintBacklogId);
+
+        if (productBacklogOptional.isPresent() && sprintBacklogOptional.isPresent()) {
+            ProductBacklog productBacklog = productBacklogOptional.get();
+            SprintBacklog sprintBacklog = sprintBacklogOptional.get();
+
+            // Check if the sprint backlog belongs to this product backlog
+            if (sprintBacklog.getProductBacklog() != null &&
+                    sprintBacklog.getProductBacklog().getId().equals(productBacklogId)) {
+                // Remove the association
+                sprintBacklog.setProductBacklog(null);
+                productBacklog.getSprintBacklogs().remove(sprintBacklog);
+
+                sprintBacklogRepository.save(sprintBacklog);
+                productBacklogRepo.save(productBacklog);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public List<SprintBacklog> getAllSprintBacklogsByProductBacklog(Integer productBacklogId) {
+        Optional<ProductBacklog> productBacklogOptional = productBacklogRepo.findById(productBacklogId);
+        if (productBacklogOptional.isPresent()) {
+            ProductBacklog productBacklog = productBacklogOptional.get();
+            return productBacklog.getSprintBacklogs();
+        }
+        throw new EntityNotFoundException("ProductBacklog not found with ID: " + productBacklogId);
+    }
+
+    @Override
+    public Map<String, Integer> getProductBacklogSprintStatistics(Integer productBacklogId) {
+        Optional<ProductBacklog> productBacklogOptional = productBacklogRepo.findById(productBacklogId);
+        Map<String, Integer> stats = new HashMap<>();
+
+        if (productBacklogOptional.isPresent()) {
+            ProductBacklog productBacklog = productBacklogOptional.get();
+            List<SprintBacklog> sprintBacklogs = productBacklog.getSprintBacklogs();
+
+            int totalSprints = sprintBacklogs.size();
+            int totalUserStories = sprintBacklogs.stream()
+                    .mapToInt(sprint -> sprint.getUserStories().size())
+                    .sum();
+            totalSprints = sprintBacklogs.stream()
+                    .mapToInt(sprint -> sprint.getSprints().size())
+                    .sum();
+
+            stats.put("totalSprintBacklogs", totalSprints);
+            stats.put("totalUserStories", totalUserStories);
+            stats.put("totalSprints", totalSprints);
+        } else {
+            stats.put("totalSprintBacklogs", 0);
+            stats.put("totalUserStories", 0);
+            stats.put("totalSprints", 0);
+        }
+
+        return stats;
     }
 }

@@ -4,8 +4,10 @@ import org.example.productbacklog.entity.SprintBacklog;
 import org.example.productbacklog.entity.Statut;
 import org.example.productbacklog.entity.Task;
 import org.example.productbacklog.entity.UserStory;
+import org.example.productbacklog.entity.ProductBacklog;
 import org.example.productbacklog.repository.SprintBacklogRepository;
 import org.example.productbacklog.repository.UserStoryRepository;
+import org.example.productbacklog.repository.ProductBacklogRepository;
 import org.example.productbacklog.service.SprintBacklogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,11 +25,15 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
 
     private final SprintBacklogRepository sprintBacklogRepository;
     private final UserStoryRepository userStoryRepository;
+    private final ProductBacklogRepository productBacklogRepository;
 
     @Autowired
-    public SprintBacklogServiceImpl(SprintBacklogRepository sprintBacklogRepository, UserStoryRepository userStoryRepository) {
+    public SprintBacklogServiceImpl(SprintBacklogRepository sprintBacklogRepository,
+                                    UserStoryRepository userStoryRepository,
+                                    ProductBacklogRepository productBacklogRepository) {
         this.sprintBacklogRepository = sprintBacklogRepository;
         this.userStoryRepository = userStoryRepository;
+        this.productBacklogRepository = productBacklogRepository;
     }
 
     @Override
@@ -43,6 +49,29 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
     }
 
     @Override
+    @Transactional
+    public SprintBacklog createSprintBacklog(String title, Integer productBacklogId) {
+        if (title == null || title.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le titre du Sprint Backlog ne peut pas être vide");
+        }
+
+        ProductBacklog productBacklog = productBacklogRepository.findById(productBacklogId)
+                .orElseThrow(() -> new EntityNotFoundException("Product Backlog not found with ID: " + productBacklogId));
+
+        SprintBacklog sprintBacklog = new SprintBacklog();
+        sprintBacklog.setTitle(title);
+        sprintBacklog.setProductBacklog(productBacklog);
+
+        SprintBacklog savedSprintBacklog = sprintBacklogRepository.save(sprintBacklog);
+
+        // Add to product backlog's sprint backlogs list
+        productBacklog.getSprintBacklogs().add(savedSprintBacklog);
+        productBacklogRepository.save(productBacklog);
+
+        return savedSprintBacklog;
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Optional<SprintBacklog> getSprintBacklogById(Long id) {
         return sprintBacklogRepository.findById(id);
@@ -52,6 +81,15 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
     @Transactional(readOnly = true)
     public List<SprintBacklog> getAllSprintBacklogs() {
         return sprintBacklogRepository.findAllByOrderByIdDesc();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SprintBacklog> getSprintBacklogsByProductBacklogId(Integer productBacklogId) {
+        ProductBacklog productBacklog = productBacklogRepository.findById(productBacklogId)
+                .orElseThrow(() -> new EntityNotFoundException("Product Backlog not found with ID: " + productBacklogId));
+
+        return productBacklog.getSprintBacklogs();
     }
 
     @Override
@@ -72,6 +110,13 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
     public void deleteSprintBacklog(Long id) {
         SprintBacklog sprintBacklog = sprintBacklogRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog non trouvé avec l'ID: " + id));
+
+        // Detach from product backlog if associated
+        if (sprintBacklog.getProductBacklog() != null) {
+            ProductBacklog productBacklog = sprintBacklog.getProductBacklog();
+            productBacklog.getSprintBacklogs().remove(sprintBacklog);
+            productBacklogRepository.save(productBacklog);
+        }
 
         // Détacher les User Stories du Sprint Backlog avant de le supprimer
         for (UserStory userStory : sprintBacklog.getUserStories()) {
@@ -215,5 +260,47 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
                 .count();
 
         return (double) completedTasks / tasks.size() * 100.0;
+    }
+
+    @Override
+    @Transactional
+    public SprintBacklog assignSprintBacklogToProductBacklog(Long sprintBacklogId, Integer productBacklogId) {
+        SprintBacklog sprintBacklog = sprintBacklogRepository.findById(sprintBacklogId)
+                .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog non trouvé avec l'ID: " + sprintBacklogId));
+
+        ProductBacklog productBacklog = productBacklogRepository.findById(productBacklogId)
+                .orElseThrow(() -> new EntityNotFoundException("Product Backlog not found with ID: " + productBacklogId));
+
+        // Remove from previous product backlog if exists
+        if (sprintBacklog.getProductBacklog() != null) {
+            ProductBacklog previousProductBacklog = sprintBacklog.getProductBacklog();
+            previousProductBacklog.getSprintBacklogs().remove(sprintBacklog);
+            productBacklogRepository.save(previousProductBacklog);
+        }
+
+        // Assign to new product backlog
+        sprintBacklog.setProductBacklog(productBacklog);
+        productBacklog.getSprintBacklogs().add(sprintBacklog);
+
+        productBacklogRepository.save(productBacklog);
+        return sprintBacklogRepository.save(sprintBacklog);
+    }
+
+    @Override
+    @Transactional
+    public SprintBacklog removeSprintBacklogFromProductBacklog(Long sprintBacklogId) {
+        SprintBacklog sprintBacklog = sprintBacklogRepository.findById(sprintBacklogId)
+                .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog non trouvé avec l'ID: " + sprintBacklogId));
+
+        if (sprintBacklog.getProductBacklog() != null) {
+            ProductBacklog productBacklog = sprintBacklog.getProductBacklog();
+            productBacklog.getSprintBacklogs().remove(sprintBacklog);
+            productBacklogRepository.save(productBacklog);
+
+            sprintBacklog.setProductBacklog(null);
+            return sprintBacklogRepository.save(sprintBacklog);
+        }
+
+        return sprintBacklog;
     }
 }

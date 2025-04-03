@@ -14,9 +14,15 @@ public interface SprintBacklogService {
     // Méthodes CRUD de base
     SprintBacklog createSprintBacklog(String title);
 
+    // Modified method to create a sprint backlog with a product backlog
+    SprintBacklog createSprintBacklog(String title, Integer productBacklogId);
+
     Optional<SprintBacklog> getSprintBacklogById(Long id);
 
     List<SprintBacklog> getAllSprintBacklogs();
+
+    // Modified method to get sprint backlogs by product backlog
+    List<SprintBacklog> getSprintBacklogsByProductBacklogId(Integer productBacklogId);
 
     SprintBacklog updateSprintBacklog(Long id, String title);
 
@@ -42,4 +48,9 @@ public interface SprintBacklogService {
     int countTotalTasks(Long sprintBacklogId);
 
     double calculateSprintProgress(Long sprintBacklogId);
+
+    // Modified methods for product backlog relationship
+    SprintBacklog assignSprintBacklogToProductBacklog(Long sprintBacklogId, Integer productBacklogId);
+
+    SprintBacklog removeSprintBacklogFromProductBacklog(Long sprintBacklogId);
 }
