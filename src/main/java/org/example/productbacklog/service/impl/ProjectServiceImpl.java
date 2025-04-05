@@ -1,5 +1,6 @@
 package org.example.productbacklog.service.impl;
 
+import org.example.productbacklog.converter.ProjectConverter;
 import org.example.productbacklog.dto.ProjectDTO;
 import org.example.productbacklog.entity.Project;
 import org.example.productbacklog.entity.ProductBacklog;
@@ -29,75 +30,102 @@ public class ProjectServiceImpl implements ProjectService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ProjectConverter projectConverter;
+
     @Override
     @Transactional
-    public Project addProject(Project project) {
-        // If a user is already set, validate it's a Product Owner
-        if (project.getUser() != null) {
-            validateUserIsProductOwner(project.getUser());
+    public ProjectDTO addProject(ProjectDTO projectDTO) {
+        Project project = projectConverter.convertToEntity(projectDTO);
+
+        // If userId is provided, validate the user is a Product Owner
+        if (projectDTO.getUserId() != null) {
+            Optional<User> userOptional = userRepository.findById(projectDTO.getUserId());
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                validateUserIsProductOwner(user);
+            }
         }
-        return projectRepository.save(project);
+
+        Project savedProject = projectRepository.save(project);
+        return projectConverter.convertToDTO(savedProject);
     }
 
     @Override
     @Transactional
-    public Project addProjectWithOwner(Project project, Long userId) {
+    public ProjectDTO addProjectWithOwner(ProjectDTO projectDTO, Long userId) {
+        Project project = projectConverter.convertToEntity(projectDTO);
+
         Optional<User> userOptional = userRepository.findById(userId);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
             validateUserIsProductOwner(user);
             project.setUser(user);
-            return projectRepository.save(project);
+            Project savedProject = projectRepository.save(project);
+            return projectConverter.convertToDTO(savedProject);
         }
         throw new IllegalArgumentException("User not found with ID: " + userId);
     }
 
     @Override
     @Transactional
-    public Project updateProject(ProjectDTO projectDTO, int idProjet) {
-        Optional<Project> existingProject = projectRepository.findById(idProjet);
-        if (existingProject.isPresent()) {
-            Project project = existingProject.get();
-            project.setProjectName(projectDTO.getProjectName());
-            return projectRepository.save(project);
+    public ProjectDTO updateProject(ProjectDTO projectDTO, int projectId) {
+        Optional<Project> existingProjectOpt = projectRepository.findById(projectId);
+        if (existingProjectOpt.isPresent()) {
+            Project existingProject = existingProjectOpt.get();
+
+            // Update fields from DTO
+            existingProject = projectConverter.updateEntityFromDTO(existingProject, projectDTO);
+
+            // Validate if user is being updated and is a Product Owner
+            if (projectDTO.getUserId() != null && existingProject.getUser() != null) {
+                validateUserIsProductOwner(existingProject.getUser());
+            }
+
+            Project savedProject = projectRepository.save(existingProject);
+            return projectConverter.convertToDTO(savedProject);
         }
         return null;
     }
 
     @Override
-    public Project getProject(int projectId) {
-        return projectRepository.findById(projectId).orElse(null);
+    public ProjectDTO getProject(int projectId) {
+        Optional<Project> projectOpt = projectRepository.findById(projectId);
+        return projectOpt.map(project -> projectConverter.convertToDTO(project)).orElse(null);
     }
 
     @Override
-    public List<Project> getProjects() {
-        return projectRepository.findAll();
+    public List<ProjectDTO> getProjects() {
+        List<Project> projects = projectRepository.findAll();
+        return projectConverter.convertToDTOList(projects);
     }
 
     @Override
-    public List<Project> getProjectsByUser(Long userId) {
+    public List<ProjectDTO> getProjectsByUser(Long userId) {
         Optional<User> userOptional = userRepository.findById(userId);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            return projectRepository.findByUser(user);
+            List<Project> projects = projectRepository.findByUser(user);
+            return projectConverter.convertToDTOList(projects);
         }
         return List.of(); // Return empty list if user not found
     }
 
     @Override
     @Transactional
-    public Project deleteProject(int projectId) {
-        Optional<Project> project = projectRepository.findById(projectId);
-        if (project.isPresent()) {
-            projectRepository.delete(project.get());
-            return project.get();
+    public boolean deleteProject(int projectId) {
+        Optional<Project> projectOpt = projectRepository.findById(projectId);
+        if (projectOpt.isPresent()) {
+            projectRepository.delete(projectOpt.get());
+            return true;
         }
-        return null;
+        return false;
     }
 
     @Override
-    public Project getProjectByName(String projectName) {
-        return projectRepository.findByProjectName(projectName);
+    public ProjectDTO getProjectByName(String projectName) {
+        Project project = projectRepository.findByProjectName(projectName);
+        return projectConverter.convertToDTO(project);
     }
 
     @Override

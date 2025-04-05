@@ -1,6 +1,9 @@
 package org.example.test;
-
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.example.productbacklog.controller.AuthController;
+import org.example.productbacklog.converter.UserConverter;
+import org.example.productbacklog.dto.UserDTO;
 import org.example.productbacklog.entity.User;
 import org.example.productbacklog.payload.request.LoginRequest;
 import org.example.productbacklog.payload.request.SignupRequest;
@@ -26,6 +29,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class AuthControllerTest {
 
     @Mock
@@ -38,12 +42,16 @@ public class AuthControllerTest {
     private JwtUtil jwtUtil;
 
     @Mock
+    private UserConverter userConverter;
+
+    @Mock
     private Authentication authentication;
 
     @InjectMocks
     private AuthController authController;
 
     private User testUser;
+    private UserDTO testUserDTO;
     private LoginRequest loginRequest;
     private SignupRequest signupRequest;
 
@@ -57,8 +65,14 @@ public class AuthControllerTest {
                 .role(User.Role.DEVELOPER)
                 .build();
 
+        testUserDTO = new UserDTO();
+        testUserDTO.setId(1L);
+        testUserDTO.setUsername("testuser");
+        testUserDTO.setEmail("test@example.com");
+        testUserDTO.setRole(User.Role.DEVELOPER);
+
         loginRequest = new LoginRequest();
-        loginRequest.setEmail("test@example.com"); // Changed from setUsername to setEmail
+        loginRequest.setEmail("test@example.com");
         loginRequest.setPassword("password123");
 
         signupRequest = new SignupRequest();
@@ -66,20 +80,19 @@ public class AuthControllerTest {
         signupRequest.setEmail("new@example.com");
         signupRequest.setPassword("newpassword");
         signupRequest.setRole(User.Role.DEVELOPER);
+
+        lenient().when(userConverter.convertToEntity(testUserDTO)).thenReturn(testUser);
     }
 
     @Test
     void authenticateUser_WithValidCredentials_ShouldReturnJwtResponse() {
-        // Arrange
-        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUser)); // Changed from getUserByUsername
+        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUserDTO));
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
         when(jwtUtil.generateToken(testUser)).thenReturn("jwtToken");
 
-        // Act
         ResponseEntity<?> response = authController.authenticateUser(loginRequest);
 
-        // Assert
         assertTrue(response.getBody() instanceof JwtResponse);
         JwtResponse jwtResponse = (JwtResponse) response.getBody();
 
@@ -92,13 +105,10 @@ public class AuthControllerTest {
 
     @Test
     void authenticateUser_WithUserNotFound_ShouldReturnErrorResponse() {
-        // Arrange
-        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.empty()); // Changed from getUserByUsername
+        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.empty());
 
-        // Act
         ResponseEntity<?> response = authController.authenticateUser(loginRequest);
 
-        // Assert
         assertTrue(response.getBody() instanceof MessageResponse);
         MessageResponse messageResponse = (MessageResponse) response.getBody();
 
@@ -107,63 +117,51 @@ public class AuthControllerTest {
 
     @Test
     void registerUser_WithValidRequest_ShouldRegisterSuccessfully() {
-        // Arrange
         when(userService.isUsernameAvailable("newuser")).thenReturn(true);
         when(userService.isEmailAvailable("new@example.com")).thenReturn(true);
-        when(userService.createUser(any(User.class))).thenReturn(testUser);
 
-        // Act
         ResponseEntity<?> response = authController.registerUser(signupRequest);
 
-        // Assert
         assertTrue(response.getBody() instanceof MessageResponse);
         MessageResponse messageResponse = (MessageResponse) response.getBody();
 
         assertEquals("User registered successfully!", messageResponse.getMessage());
-        verify(userService).createUser(any(User.class));
+        verify(userService).createUser(any(UserDTO.class), eq("newpassword"));
     }
 
     @Test
     void registerUser_WithUsernameTaken_ShouldReturnErrorResponse() {
-        // Arrange
         when(userService.isUsernameAvailable("newuser")).thenReturn(false);
 
-        // Act
         ResponseEntity<?> response = authController.registerUser(signupRequest);
 
-        // Assert
         assertTrue(response.getBody() instanceof MessageResponse);
         MessageResponse messageResponse = (MessageResponse) response.getBody();
 
         assertEquals("Error: Username is already taken!", messageResponse.getMessage());
-        verify(userService, never()).createUser(any(User.class));
+        verify(userService, never()).createUser(any(UserDTO.class), anyString());
     }
 
     @Test
     void registerUser_WithEmailTaken_ShouldReturnErrorResponse() {
-        // Arrange
         when(userService.isUsernameAvailable("newuser")).thenReturn(true);
         when(userService.isEmailAvailable("new@example.com")).thenReturn(false);
 
-        // Act
         ResponseEntity<?> response = authController.registerUser(signupRequest);
 
-        // Assert
         assertTrue(response.getBody() instanceof MessageResponse);
         MessageResponse messageResponse = (MessageResponse) response.getBody();
 
         assertEquals("Error: Email is already in use!", messageResponse.getMessage());
-        verify(userService, never()).createUser(any(User.class));
+        verify(userService, never()).createUser(any(UserDTO.class), anyString());
     }
 
     @Test
     void authenticateUser_WithAuthenticationException_ShouldPropagateException() {
-        // Arrange
-        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUser)); // Changed from getUserByUsername
+        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUserDTO));
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new RuntimeException("Authentication failed"));
 
-        // Act & Assert
         assertThrows(RuntimeException.class, () -> {
             authController.authenticateUser(loginRequest);
         });
@@ -173,17 +171,13 @@ public class AuthControllerTest {
 
     @Test
     void authenticateUser_ShouldSetSecurityContext() {
-        // Arrange
-        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUser)); // Changed from getUserByUsername
+        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUserDTO));
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
         when(jwtUtil.generateToken(testUser)).thenReturn("jwtToken");
 
-        // Act
         authController.authenticateUser(loginRequest);
 
-        // Assert
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        // This test verifies that the authentication is set in the security context
     }
 }

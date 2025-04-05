@@ -1,5 +1,7 @@
 package org.example.productbacklog.service.impl;
 
+import org.example.productbacklog.converter.SprintConverter;
+import org.example.productbacklog.dto.SprintDTO;
 import org.example.productbacklog.entity.Sprint;
 import org.example.productbacklog.entity.SprintBacklog;
 import org.example.productbacklog.repository.SprintRepository;
@@ -19,18 +21,21 @@ public class SprintServiceImpl implements SprintService {
 
     private final SprintRepository sprintRepository;
     private final SprintBacklogRepository sprintBacklogRepository;
+    private final SprintConverter sprintConverter;
 
     @Autowired
     public SprintServiceImpl(
             SprintRepository sprintRepository,
-            SprintBacklogRepository sprintBacklogRepository) {
+            SprintBacklogRepository sprintBacklogRepository,
+            SprintConverter sprintConverter) {
         this.sprintRepository = sprintRepository;
         this.sprintBacklogRepository = sprintBacklogRepository;
+        this.sprintConverter = sprintConverter;
     }
 
     @Override
     @Transactional
-    public Sprint createSprint(String name, LocalDate startDate, LocalDate endDate, Long sprintBacklogId) {
+    public SprintDTO createSprint(String name, LocalDate startDate, LocalDate endDate, Long sprintBacklogId) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Sprint name cannot be empty");
         }
@@ -58,24 +63,27 @@ public class SprintServiceImpl implements SprintService {
                 .sprintBacklog(sprintBacklog)
                 .build();
 
-        return sprintRepository.save(sprint);
+        Sprint savedSprint = sprintRepository.save(sprint);
+        return sprintConverter.convertToDTO(savedSprint);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Sprint> getSprintById(Long id) {
-        return sprintRepository.findById(id);
+    public Optional<SprintDTO> getSprintById(Long id) {
+        return sprintRepository.findById(id)
+                .map(sprintConverter::convertToDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Sprint> getAllSprints() {
-        return sprintRepository.findAll();
+    public List<SprintDTO> getAllSprints() {
+        List<Sprint> sprints = sprintRepository.findAll();
+        return sprintConverter.convertToDTOList(sprints);
     }
 
     @Override
     @Transactional
-    public Sprint updateSprint(Long id, String name, LocalDate startDate, LocalDate endDate) {
+    public SprintDTO updateSprint(Long id, String name, LocalDate startDate, LocalDate endDate) {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint not found with ID: " + id));
 
@@ -124,7 +132,8 @@ public class SprintServiceImpl implements SprintService {
             sprint.setEndDate(endDate);
         }
 
-        return sprintRepository.save(sprint);
+        Sprint updatedSprint = sprintRepository.save(sprint);
+        return sprintConverter.convertToDTO(updatedSprint);
     }
 
     @Override
@@ -138,37 +147,41 @@ public class SprintServiceImpl implements SprintService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Sprint> getSprintsBySprintBacklogId(Long sprintBacklogId) {
+    public List<SprintDTO> getSprintsBySprintBacklogId(Long sprintBacklogId) {
         sprintBacklogRepository.findById(sprintBacklogId)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog not found with ID: " + sprintBacklogId));
 
-        return sprintRepository.findBySprintBacklogId(sprintBacklogId);
+        List<Sprint> sprints = sprintRepository.findBySprintBacklogId(sprintBacklogId);
+        return sprintConverter.convertToDTOList(sprints);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Sprint> getActiveSprintsByDate(LocalDate date) {
+    public List<SprintDTO> getActiveSprintsByDate(LocalDate date) {
         if (date == null) {
             date = LocalDate.now();
         }
-        return sprintRepository.findActiveSprintsByDate(date);
+        List<Sprint> sprints = sprintRepository.findActiveSprintsByDate(date);
+        return sprintConverter.convertToDTOList(sprints);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Sprint> getUpcomingSprints() {
-        return sprintRepository.findUpcomingSprints(LocalDate.now());
+    public List<SprintDTO> getUpcomingSprints() {
+        List<Sprint> sprints = sprintRepository.findUpcomingSprints(LocalDate.now());
+        return sprintConverter.convertToDTOList(sprints);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Sprint> getCompletedSprints() {
-        return sprintRepository.findCompletedSprints(LocalDate.now());
+    public List<SprintDTO> getCompletedSprints() {
+        List<Sprint> sprints = sprintRepository.findCompletedSprints(LocalDate.now());
+        return sprintConverter.convertToDTOList(sprints);
     }
 
     @Override
     @Transactional
-    public Sprint assignSprintToSprintBacklog(Long sprintId, Long sprintBacklogId) {
+    public SprintDTO assignSprintToSprintBacklog(Long sprintId, Long sprintBacklogId) {
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint not found with ID: " + sprintId));
 
@@ -181,17 +194,19 @@ public class SprintServiceImpl implements SprintService {
         }
 
         sprint.setSprintBacklog(sprintBacklog);
-        return sprintRepository.save(sprint);
+        Sprint updatedSprint = sprintRepository.save(sprint);
+        return sprintConverter.convertToDTO(updatedSprint);
     }
 
     @Override
     @Transactional
-    public Sprint removeSprintFromSprintBacklog(Long sprintId) {
+    public SprintDTO removeSprintFromSprintBacklog(Long sprintId) {
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint not found with ID: " + sprintId));
 
         sprint.setSprintBacklog(null);
-        return sprintRepository.save(sprint);
+        Sprint updatedSprint = sprintRepository.save(sprint);
+        return sprintConverter.convertToDTO(updatedSprint);
     }
 
     @Override

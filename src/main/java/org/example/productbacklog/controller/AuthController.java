@@ -1,5 +1,7 @@
 package org.example.productbacklog.controller;
 
+import org.example.productbacklog.converter.UserConverter;
+import org.example.productbacklog.dto.UserDTO;
 import org.example.productbacklog.entity.User;
 import org.example.productbacklog.payload.request.LoginRequest;
 import org.example.productbacklog.payload.request.SignupRequest;
@@ -31,16 +33,22 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private UserConverter userConverter;
+
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         // Get user by email first
-        Optional<User> userOpt = userService.getUserByEmail(loginRequest.getEmail());
+        Optional<UserDTO> userDTOOpt = userService.getUserByEmail(loginRequest.getEmail());
 
-        if (!userOpt.isPresent()) {
+        if (!userDTOOpt.isPresent()) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: User not found"));
         }
 
-        User user = userOpt.get();
+        UserDTO userDTO = userDTOOpt.get();
+
+        // Convert DTO to entity for authentication and JWT generation
+        User user = userConverter.convertToEntity(userDTO);
 
         // Authenticate with username and password
         // Spring Security still needs username for authentication
@@ -53,10 +61,10 @@ public class AuthController {
 
         return ResponseEntity.ok(new JwtResponse(
                 jwt,
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getRole().name()));
+                userDTO.getId(),
+                userDTO.getUsername(),
+                userDTO.getEmail(),
+                userDTO.getRole().name()));
     }
 
     @PostMapping("/signup")
@@ -75,15 +83,14 @@ public class AuthController {
                     .body(new MessageResponse("Error: Email is already in use!"));
         }
 
-        // Create new user
-        User user = User.builder()
-                .username(signUpRequest.getUsername())
-                .email(signUpRequest.getEmail())
-                .password(signUpRequest.getPassword()) // Will be encoded in service
-                .role(signUpRequest.getRole())
-                .build();
+        // Create UserDTO from signup request
+        UserDTO userDTO = new UserDTO();
+        userDTO.setUsername(signUpRequest.getUsername());
+        userDTO.setEmail(signUpRequest.getEmail());
+        userDTO.setRole(signUpRequest.getRole());
 
-        userService.createUser(user);
+        // Create user with DTO and password
+        userService.createUser(userDTO, signUpRequest.getPassword());
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }

@@ -1,6 +1,6 @@
 package org.example.productbacklog.service;
 
-import org.example.productbacklog.entity.Sprint;
+import org.example.productbacklog.dto.SprintDTO;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -9,29 +9,29 @@ import java.util.Optional;
 public interface SprintService {
 
     // Basic CRUD operations
-    Sprint createSprint(String name, LocalDate startDate, LocalDate endDate, Long sprintBacklogId);
+    SprintDTO createSprint(String name, LocalDate startDate, LocalDate endDate, Long sprintBacklogId);
 
-    Optional<Sprint> getSprintById(Long id);
+    Optional<SprintDTO> getSprintById(Long id);
 
-    List<Sprint> getAllSprints();
+    List<SprintDTO> getAllSprints();
 
-    Sprint updateSprint(Long id, String name, LocalDate startDate, LocalDate endDate);
+    SprintDTO updateSprint(Long id, String name, LocalDate startDate, LocalDate endDate);
 
     void deleteSprint(Long id);
 
     // Specific operations
-    List<Sprint> getSprintsBySprintBacklogId(Long sprintBacklogId);
+    List<SprintDTO> getSprintsBySprintBacklogId(Long sprintBacklogId);
 
-    List<Sprint> getActiveSprintsByDate(LocalDate date);
+    List<SprintDTO> getActiveSprintsByDate(LocalDate date);
 
-    List<Sprint> getUpcomingSprints();
+    List<SprintDTO> getUpcomingSprints();
 
-    List<Sprint> getCompletedSprints();
+    List<SprintDTO> getCompletedSprints();
 
     // Sprint management operations
-    Sprint assignSprintToSprintBacklog(Long sprintId, Long sprintBacklogId);
+    SprintDTO assignSprintToSprintBacklog(Long sprintId, Long sprintBacklogId);
 
-    Sprint removeSprintFromSprintBacklog(Long sprintId);
+    SprintDTO removeSprintFromSprintBacklog(Long sprintId);
 
     // Duration validation and overlap checking
     boolean isSprintDateRangeValid(LocalDate startDate, LocalDate endDate);

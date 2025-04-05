@@ -1,5 +1,9 @@
 package org.example.productbacklog.service.impl;
 
+import org.example.productbacklog.converter.ProductBacklogConverter;
+import org.example.productbacklog.converter.SprintBacklogConverter;
+import org.example.productbacklog.dto.ProductBacklogDTO;
+import org.example.productbacklog.dto.SprintBacklogDTO;
 import org.example.productbacklog.entity.ProductBacklog;
 import org.example.productbacklog.entity.Project;
 import org.example.productbacklog.entity.SprintBacklog;
@@ -16,6 +20,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Collections;
+import java.time.LocalDate;
 
 @Service
 public class ProductBacklogServiceImpl implements ProductBacklogService {
@@ -29,9 +35,18 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
     @Autowired
     private SprintBacklogRepository sprintBacklogRepository;
 
+    @Autowired
+    private ProductBacklogConverter productBacklogConverter;
+
+    @Autowired
+    private SprintBacklogConverter sprintBacklogConverter;
+
     @Override
     @Transactional
-    public ProductBacklog addProductBacklog(ProductBacklog productBacklog) {
+    public ProductBacklogDTO addProductBacklog(ProductBacklogDTO productBacklogDTO) {
+        // Convert DTO to entity
+        ProductBacklog productBacklog = productBacklogConverter.dtoToEntity(productBacklogDTO);
+
         // First save the product backlog without the project reference
         if (productBacklog.getProject() != null) {
             Project project = productBacklog.getProject();
@@ -53,24 +68,26 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
             projectRepository.save(project);
 
             // Save the backlog again with the project reference
-            return productBacklogRepo.save(productBacklog);
+            ProductBacklog savedEntity = productBacklogRepo.save(productBacklog);
+            return productBacklogConverter.entityToDto(savedEntity);
         }
 
-        return productBacklogRepo.save(productBacklog);
+        ProductBacklog savedEntity = productBacklogRepo.save(productBacklog);
+        return productBacklogConverter.entityToDto(savedEntity);
     }
 
     @Override
-    public ProductBacklog findProductBacklogByNom(String nom) {
+    public ProductBacklogDTO findProductBacklogByNom(String nom) {
         Optional<ProductBacklog> backlogOptional = productBacklogRepo.findFirstByTitle(nom);
         if (backlogOptional.isEmpty()) {
             throw new IllegalStateException("ProductBacklog not found");
         }
-        return backlogOptional.get();
+        return productBacklogConverter.entityToDto(backlogOptional.get());
     }
 
     @Override
     @Transactional
-    public ProductBacklog deleteProductBacklog(Integer id) {
+    public ProductBacklogDTO deleteProductBacklog(Integer id) {
         Optional<ProductBacklog> existingBacklogOptional = productBacklogRepo.findById(id);
         if (existingBacklogOptional.isPresent()) {
             ProductBacklog backlogToDelete = existingBacklogOptional.get();
@@ -82,23 +99,25 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
                 productBacklogRepo.save(backlogToDelete);
             }
             productBacklogRepo.delete(backlogToDelete);
-            return backlogToDelete;
+            return productBacklogConverter.entityToDto(backlogToDelete);
         }
         throw new IllegalStateException("ProductBacklog not found");
     }
 
     @Override
     @Transactional
-    public ProductBacklog updateProductBacklog(Integer id, ProductBacklog productBacklog) {
+    public ProductBacklogDTO updateProductBacklog(Integer id, ProductBacklogDTO productBacklogDTO) {
         Optional<ProductBacklog> existingBacklogOptional = productBacklogRepo.findById(id);
         if (existingBacklogOptional.isPresent()) {
             ProductBacklog existingBacklog = existingBacklogOptional.get();
-            if (productBacklog.getTitle() != null) {
-                existingBacklog.setTitle(productBacklog.getTitle());
+            ProductBacklog updatedBacklog = productBacklogConverter.dtoToEntity(productBacklogDTO);
+
+            if (updatedBacklog.getTitle() != null) {
+                existingBacklog.setTitle(updatedBacklog.getTitle());
             }
 
             // Handle project relationship changes
-            if (productBacklog.getProject() != existingBacklog.getProject()) {
+            if (updatedBacklog.getProject() != existingBacklog.getProject()) {
                 // First remove the old relationship if it exists
                 if (existingBacklog.getProject() != null) {
                     Project oldProject = existingBacklog.getProject();
@@ -109,8 +128,8 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
                 }
 
                 // Then establish the new relationship if needed
-                if (productBacklog.getProject() != null) {
-                    Project newProject = productBacklog.getProject();
+                if (updatedBacklog.getProject() != null) {
+                    Project newProject = updatedBacklog.getProject();
                     if (newProject.getProductBacklog() != null && !newProject.getProductBacklog().equals(existingBacklog)) {
                         ProductBacklog oldBacklog = newProject.getProductBacklog();
                         oldBacklog.setProject(null);
@@ -122,23 +141,26 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
                 }
             }
 
-            if (productBacklog.getEpics() != null && !productBacklog.getEpics().isEmpty()) {
-                existingBacklog.setEpics(productBacklog.getEpics());
+            if (updatedBacklog.getEpics() != null && !updatedBacklog.getEpics().isEmpty()) {
+                existingBacklog.setEpics(updatedBacklog.getEpics());
             }
 
-            return productBacklogRepo.save(existingBacklog);
+            ProductBacklog savedBacklog = productBacklogRepo.save(existingBacklog);
+            return productBacklogConverter.entityToDto(savedBacklog);
         }
         throw new IllegalStateException("ProductBacklog not found");
     }
 
     @Override
-    public List<ProductBacklog> findByProjectProjectId(int projectId) {
-        return productBacklogRepo.findByProjectProjectId(projectId);
+    public List<ProductBacklogDTO> findByProjectProjectId(int projectId) {
+        List<ProductBacklog> productBacklogs = productBacklogRepo.findByProjectProjectId(projectId);
+        return productBacklogConverter.entitiesToDtos(productBacklogs);
     }
 
     @Override
-    public List<ProductBacklog> findAll() {
-        return productBacklogRepo.findAll();
+    public List<ProductBacklogDTO> findAll() {
+        List<ProductBacklog> productBacklogs = productBacklogRepo.findAll();
+        return productBacklogConverter.entitiesToDtos(productBacklogs);
     }
 
     @Override
@@ -201,11 +223,11 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
     }
 
     @Override
-    public List<SprintBacklog> getAllSprintBacklogsByProductBacklog(Integer productBacklogId) {
+    public List<SprintBacklogDTO> getAllSprintBacklogsByProductBacklog(Integer productBacklogId) {
         Optional<ProductBacklog> productBacklogOptional = productBacklogRepo.findById(productBacklogId);
         if (productBacklogOptional.isPresent()) {
             ProductBacklog productBacklog = productBacklogOptional.get();
-            return productBacklog.getSprintBacklogs();
+            return sprintBacklogConverter.convertToDTOList(productBacklog.getSprintBacklogs());
         }
         throw new EntityNotFoundException("ProductBacklog not found with ID: " + productBacklogId);
     }
@@ -223,13 +245,13 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
             int totalUserStories = sprintBacklogs.stream()
                     .mapToInt(sprint -> sprint.getUserStories().size())
                     .sum();
-            totalSprints = sprintBacklogs.stream()
+            int totalSprintCount = sprintBacklogs.stream()
                     .mapToInt(sprint -> sprint.getSprints().size())
                     .sum();
 
             stats.put("totalSprintBacklogs", totalSprints);
             stats.put("totalUserStories", totalUserStories);
-            stats.put("totalSprints", totalSprints);
+            stats.put("totalSprints", totalSprintCount);
         } else {
             stats.put("totalSprintBacklogs", 0);
             stats.put("totalUserStories", 0);
@@ -237,5 +259,70 @@ public class ProductBacklogServiceImpl implements ProductBacklogService {
         }
 
         return stats;
+    }
+
+    @Override
+    public List<SprintBacklogDTO> getSprintBacklogsByProductBacklogId(Integer productBacklogId) {
+        Optional<ProductBacklog> productBacklogOptional = productBacklogRepo.findById(productBacklogId);
+        if (productBacklogOptional.isPresent()) {
+            ProductBacklog productBacklog = productBacklogOptional.get();
+            List<SprintBacklog> sprintBacklogs = sprintBacklogRepository.findByProductBacklog(productBacklog);
+            return sprintBacklogConverter.convertToDTOList(sprintBacklogs);
+        }
+        throw new RuntimeException("ProductBacklog not found with ID: " + productBacklogId);
+    }
+
+    @Override
+    public List<SprintBacklogDTO> getActiveSprintBacklogsByProductBacklogId(Integer productBacklogId) {
+        Optional<ProductBacklog> productBacklogOptional = productBacklogRepo.findById(productBacklogId);
+        if (productBacklogOptional.isPresent()) {
+            ProductBacklog productBacklog = productBacklogOptional.get();
+
+            // Get all sprint backlogs for this product backlog
+            List<SprintBacklog> allSprintBacklogs = sprintBacklogRepository.findByProductBacklog(productBacklog);
+
+            // For demonstration purposes, we'll consider a sprint backlog "active" if it has at least one sprint
+            // that has a start date before or equal to today and an end date after or equal to today
+            LocalDate today = LocalDate.now();
+
+            List<SprintBacklog> activeSprintBacklogs = allSprintBacklogs.stream()
+                    .filter(sprintBacklog ->
+                            sprintBacklog.getSprints().stream().anyMatch(sprint ->
+                                    (sprint.getStartDate() == null || !sprint.getStartDate().isAfter(today)) &&
+                                            (sprint.getEndDate() == null || !sprint.getEndDate().isBefore(today))
+                            )
+                    )
+                    .toList();
+
+            return sprintBacklogConverter.convertToDTOList(activeSprintBacklogs);
+        }
+        throw new RuntimeException("ProductBacklog not found with ID: " + productBacklogId);
+    }
+
+    @Override
+    public List<SprintBacklogDTO> getCompletedSprintBacklogsByProductBacklogId(Integer productBacklogId) {
+        Optional<ProductBacklog> productBacklogOptional = productBacklogRepo.findById(productBacklogId);
+        if (productBacklogOptional.isPresent()) {
+            ProductBacklog productBacklog = productBacklogOptional.get();
+
+            // Get all sprint backlogs for this product backlog
+            List<SprintBacklog> allSprintBacklogs = sprintBacklogRepository.findByProductBacklog(productBacklog);
+
+            // For demonstration purposes, we'll consider a sprint backlog "completed" if all of its sprints
+            // have an end date that is before today
+            LocalDate today = LocalDate.now();
+
+            List<SprintBacklog> completedSprintBacklogs = allSprintBacklogs.stream()
+                    .filter(sprintBacklog ->
+                            !sprintBacklog.getSprints().isEmpty() &&
+                                    sprintBacklog.getSprints().stream().allMatch(sprint ->
+                                            sprint.getEndDate() != null && sprint.getEndDate().isBefore(today)
+                                    )
+                    )
+                    .toList();
+
+            return sprintBacklogConverter.convertToDTOList(completedSprintBacklogs);
+        }
+        throw new RuntimeException("ProductBacklog not found with ID: " + productBacklogId);
     }
 }

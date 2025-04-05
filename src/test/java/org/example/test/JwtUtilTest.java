@@ -1,22 +1,24 @@
 package org.example.test;
 
+import org.example.productbacklog.dto.UserDTO;
 import org.example.productbacklog.entity.User;
 import org.example.productbacklog.security.jwt.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.util.ReflectionTestUtils;
-
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 public class JwtUtilTest {
 
     private JwtUtil jwtUtil;
     private User testUser;
+    private UserDTO testUserDTO;
     private static final String SECRET = "testSecret123456789012345678901234567890";
     private static final long EXPIRATION = 3600000; // 1 hour
 
@@ -33,12 +35,28 @@ public class JwtUtilTest {
                 .password("password123")
                 .role(User.Role.DEVELOPER)
                 .build();
+
+        testUserDTO = new UserDTO();
+        testUserDTO.setId(1L);
+        testUserDTO.setUsername("testuser");
+        testUserDTO.setEmail("test@example.com");
+        testUserDTO.setRole(User.Role.DEVELOPER);
     }
 
     @Test
-    void generateToken_ShouldCreateValidToken() {
+    void generateToken_WithEntity_ShouldCreateValidToken() {
         // Act
         String token = jwtUtil.generateToken(testUser);
+
+        // Assert
+        assertNotNull(token);
+        assertTrue(token.length() > 0);
+    }
+
+    @Test
+    void generateToken_WithDTO_ShouldCreateValidToken() {
+        // Act
+        String token = jwtUtil.generateToken(testUserDTO);
 
         // Assert
         assertNotNull(token);

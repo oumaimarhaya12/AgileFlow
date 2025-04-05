@@ -1,5 +1,7 @@
 package org.example.productbacklog.service.impl;
 
+import org.example.productbacklog.converter.UserStoryConverter;
+import org.example.productbacklog.dto.UserStoryDTO;
 import org.example.productbacklog.entity.Epic;
 import org.example.productbacklog.entity.ProductBacklog;
 import org.example.productbacklog.entity.SprintBacklog;
@@ -24,33 +26,57 @@ public class UserStoryServiceImpl implements UserStoryService {
     private final EpicRepository epicRepository;
     private final SprintBacklogRepository sprintBacklogRepository;
     private final ProductBacklogRepository productBacklogRepository;
+    private final UserStoryConverter userStoryConverter;
 
     @Autowired
     public UserStoryServiceImpl(
             UserStoryRepository userStoryRepository,
             EpicRepository epicRepository,
             SprintBacklogRepository sprintBacklogRepository,
-            ProductBacklogRepository productBacklogRepository) {
+            ProductBacklogRepository productBacklogRepository,
+            UserStoryConverter userStoryConverter) {
         this.userStoryRepository = userStoryRepository;
         this.epicRepository = epicRepository;
         this.sprintBacklogRepository = sprintBacklogRepository;
         this.productBacklogRepository = productBacklogRepository;
+        this.userStoryConverter = userStoryConverter;
     }
 
     // CRUD operations
     @Override
-    public UserStory saveUserStory(UserStory userStory) {
-        return userStoryRepository.save(userStory);
+    public UserStoryDTO saveUserStory(UserStoryDTO userStoryDTO) {
+        UserStory userStory = userStoryConverter.convertToEntity(userStoryDTO);
+
+        // Set relationships if IDs are provided
+        if (userStoryDTO.getEpicId() != null) {
+            epicRepository.findById(userStoryDTO.getEpicId().longValue())
+                    .ifPresent(userStory::setEpic);
+        }
+
+        if (userStoryDTO.getProductBacklogId() != null) {
+            productBacklogRepository.findById(userStoryDTO.getProductBacklogId())
+                    .ifPresent(userStory::setProductBacklog);
+        }
+
+        if (userStoryDTO.getSprintBacklogId() != null) {
+            sprintBacklogRepository.findById(userStoryDTO.getSprintBacklogId())
+                    .ifPresent(userStory::setSprintBacklog);
+        }
+
+        UserStory savedUserStory = userStoryRepository.save(userStory);
+        return userStoryConverter.convertToDTO(savedUserStory);
     }
 
     @Override
-    public Optional<UserStory> getUserStoryById(Long id) {
-        return userStoryRepository.findById(id);
+    public Optional<UserStoryDTO> getUserStoryById(Long id) {
+        return userStoryRepository.findById(id)
+                .map(userStoryConverter::convertToDTO);
     }
 
     @Override
-    public List<UserStory> getAllUserStories() {
-        return userStoryRepository.findAll();
+    public List<UserStoryDTO> getAllUserStories() {
+        List<UserStory> userStories = userStoryRepository.findAll();
+        return userStoryConverter.convertToDTOList(userStories);
     }
 
     @Override
@@ -61,7 +87,7 @@ public class UserStoryServiceImpl implements UserStoryService {
     // Epic-related operations
     @Override
     @Transactional
-    public UserStory linkUserStoryToEpic(Long userStoryId, Integer epicId) {
+    public UserStoryDTO linkUserStoryToEpic(Long userStoryId, Integer epicId) {
         UserStory userStory = userStoryRepository.findById(userStoryId)
                 .orElseThrow(() -> new RuntimeException("User Story not found with id: " + userStoryId));
 
@@ -69,23 +95,26 @@ public class UserStoryServiceImpl implements UserStoryService {
                 .orElseThrow(() -> new RuntimeException("Epic not found with id: " + epicId));
 
         userStory.setEpic(epic);
-        return userStoryRepository.save(userStory);
+        UserStory updatedUserStory = userStoryRepository.save(userStory);
+        return userStoryConverter.convertToDTO(updatedUserStory);
     }
 
     @Override
-    public List<UserStory> getUserStoriesByEpic(Integer epicId) {
-        return userStoryRepository.findByEpicId(epicId);
+    public List<UserStoryDTO> getUserStoriesByEpic(Integer epicId) {
+        List<UserStory> userStories = userStoryRepository.findByEpicId(epicId);
+        return userStoryConverter.convertToDTOList(userStories);
     }
 
     @Override
-    public List<UserStory> getUserStoriesWithoutEpic() {
-        return userStoryRepository.findByEpicIsNull();
+    public List<UserStoryDTO> getUserStoriesWithoutEpic() {
+        List<UserStory> userStories = userStoryRepository.findByEpicIsNull();
+        return userStoryConverter.convertToDTOList(userStories);
     }
 
     // Sprint Backlog operations
     @Override
     @Transactional
-    public UserStory addUserStoryToSprintBacklog(Long userStoryId, Long sprintBacklogId) {
+    public UserStoryDTO addUserStoryToSprintBacklog(Long userStoryId, Long sprintBacklogId) {
         UserStory userStory = userStoryRepository.findById(userStoryId)
                 .orElseThrow(() -> new RuntimeException("User Story not found with id: " + userStoryId));
 
@@ -93,48 +122,55 @@ public class UserStoryServiceImpl implements UserStoryService {
                 .orElseThrow(() -> new RuntimeException("Sprint Backlog not found with id: " + sprintBacklogId));
 
         userStory.setSprintBacklog(sprintBacklog);
-        return userStoryRepository.save(userStory);
+        UserStory updatedUserStory = userStoryRepository.save(userStory);
+        return userStoryConverter.convertToDTO(updatedUserStory);
     }
 
     @Override
-    public List<UserStory> getUserStoriesBySprintBacklog(Long sprintBacklogId) {
-        return userStoryRepository.findBySprintBacklogId(sprintBacklogId);
+    public List<UserStoryDTO> getUserStoriesBySprintBacklog(Long sprintBacklogId) {
+        List<UserStory> userStories = userStoryRepository.findBySprintBacklogId(sprintBacklogId);
+        return userStoryConverter.convertToDTOList(userStories);
     }
 
     // Product Backlog operations
     @Override
-    public List<UserStory> getUserStoriesByProductBacklog(Long productBacklogId) {
-        return userStoryRepository.findByProductBacklogId(productBacklogId);
+    public List<UserStoryDTO> getUserStoriesByProductBacklog(Long productBacklogId) {
+        List<UserStory> userStories = userStoryRepository.findByProductBacklogId(productBacklogId);
+        return userStoryConverter.convertToDTOList(userStories);
     }
 
     @Override
-    public List<UserStory> getPrioritizedUserStories(Long productBacklogId) {
-        return userStoryRepository.findByProductBacklogIdOrderByPriorityDesc(productBacklogId);
+    public List<UserStoryDTO> getPrioritizedUserStories(Long productBacklogId) {
+        List<UserStory> userStories = userStoryRepository.findByProductBacklogIdOrderByPriorityDesc(productBacklogId);
+        return userStoryConverter.convertToDTOList(userStories);
     }
 
     @Override
     @Transactional
-    public UserStory updateUserStoryPriority(Long userStoryId, int newPriority) {
+    public UserStoryDTO updateUserStoryPriority(Long userStoryId, int newPriority) {
         UserStory userStory = userStoryRepository.findById(userStoryId)
                 .orElseThrow(() -> new RuntimeException("User Story not found with id: " + userStoryId));
 
         userStory.setPriority(newPriority);
-        return userStoryRepository.save(userStory);
+        UserStory updatedUserStory = userStoryRepository.save(userStory);
+        return userStoryConverter.convertToDTO(updatedUserStory);
     }
 
     // Acceptance criteria operations
     @Override
     @Transactional
-    public UserStory updateAcceptanceCriteria(Long userStoryId, String acceptanceCriteria) {
+    public UserStoryDTO updateAcceptanceCriteria(Long userStoryId, String acceptanceCriteria) {
         UserStory userStory = userStoryRepository.findById(userStoryId)
                 .orElseThrow(() -> new RuntimeException("User Story not found with id: " + userStoryId));
 
         userStory.setAcceptanceCriteria(acceptanceCriteria);
-        return userStoryRepository.save(userStory);
+        UserStory updatedUserStory = userStoryRepository.save(userStory);
+        return userStoryConverter.convertToDTO(updatedUserStory);
     }
 
     @Override
-    public List<UserStory> getUserStoriesWithoutAcceptanceCriteria() {
-        return userStoryRepository.findWithoutAcceptanceCriteria();
+    public List<UserStoryDTO> getUserStoriesWithoutAcceptanceCriteria() {
+        List<UserStory> userStories = userStoryRepository.findWithoutAcceptanceCriteria();
+        return userStoryConverter.convertToDTOList(userStories);
     }
 }

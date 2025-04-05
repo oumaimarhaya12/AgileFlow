@@ -14,7 +14,7 @@ import java.util.List;
 public class ProductBacklogDTO {
     private Integer id;
     private String title;
-    private List<Long> epicIds;
+    private List<Integer> epicIds;  // Changed from Long to Integer
     private List<Long> sprintBacklogIds;
-    private Long projectId;
+    private Integer projectId;  // Changed from Long to Integer
 }

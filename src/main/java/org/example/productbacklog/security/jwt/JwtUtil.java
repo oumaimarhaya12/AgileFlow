@@ -2,6 +2,7 @@ package org.example.productbacklog.security.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.example.productbacklog.dto.UserDTO;
 import org.example.productbacklog.entity.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +27,22 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    // Keep this method for backward compatibility
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
         claims.put("userId", user.getId());
 
         return createToken(claims, user.getUsername());
+    }
+
+    // Add a new method for UserDTO
+    public String generateToken(UserDTO userDTO) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", userDTO.getRole().name());
+        claims.put("userId", userDTO.getId());
+
+        return createToken(claims, userDTO.getUsername());
     }
 
     private String createToken(Map<String, Object> claims, String subject) {

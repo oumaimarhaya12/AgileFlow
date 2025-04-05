@@ -1,5 +1,6 @@
 package org.example.productbacklog.service;
 
+import org.example.productbacklog.dto.TaskDTO;
 import org.example.productbacklog.entity.Task;
 import org.example.productbacklog.entity.User;
 import org.example.productbacklog.entity.UserStory;
@@ -10,30 +11,30 @@ import java.util.Optional;
 
 public interface TaskService {
 
-    Task createTask(String title, String description, Task.TaskStatus status,
-                    LocalDateTime dueDate, int priority, int estimatedHours,
-                    UserStory userStory, User assignedUser);
+    TaskDTO createTask(String title, String description, Task.TaskStatus status,
+                       LocalDateTime dueDate, int priority, int estimatedHours,
+                       Long userStoryId, Long assignedUserId);
 
-    Optional<Task> findById(Long id);
+    Optional<TaskDTO> findById(Long id);
 
-    List<Task> findAll();
+    List<TaskDTO> findAll();
 
-    List<Task> findByUserStory(UserStory userStory);
+    List<TaskDTO> findByUserStoryId(Long userStoryId);
 
-    List<Task> findByAssignedUser(User user);
+    List<TaskDTO> findByAssignedUserId(Long userId);
 
-    List<Task> findByStatus(Task.TaskStatus status);
+    List<TaskDTO> findByStatus(Task.TaskStatus status);
 
-    Task updateTask(Long id, String title, String description, Task.TaskStatus status,
-                    LocalDateTime dueDate, int priority, int estimatedHours);
+    TaskDTO updateTask(Long id, String title, String description, Task.TaskStatus status,
+                       LocalDateTime dueDate, int priority, int estimatedHours);
 
-    Task assignTaskToUser(Long taskId, Long userId);
+    TaskDTO assignTaskToUser(Long taskId, Long userId);
 
-    Task logHours(Long taskId, int hours);
+    TaskDTO logHours(Long taskId, int hours);
 
-    Task updateStatus(Long taskId, Task.TaskStatus status);
+    TaskDTO updateStatus(Long taskId, Task.TaskStatus status);
 
     void deleteTask(Long id);
 
-    Task addComment(Long taskId, Long userId, String content);
+    TaskDTO addComment(Long taskId, Long userId, String content);
 }

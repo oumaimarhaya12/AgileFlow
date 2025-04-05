@@ -1,6 +1,6 @@
 package org.example.productbacklog.service;
 
-import org.example.productbacklog.entity.SprintBacklog;
+import org.example.productbacklog.dto.SprintBacklogDTO;
 import org.example.productbacklog.entity.Statut;
 import org.example.productbacklog.entity.Task;
 import org.example.productbacklog.entity.UserStory;
@@ -12,26 +12,26 @@ import java.util.Optional;
 public interface SprintBacklogService {
 
     // Méthodes CRUD de base
-    SprintBacklog createSprintBacklog(String title);
+    SprintBacklogDTO createSprintBacklog(String title);
 
     // Modified method to create a sprint backlog with a product backlog
-    SprintBacklog createSprintBacklog(String title, Integer productBacklogId);
+    SprintBacklogDTO createSprintBacklog(String title, Integer productBacklogId);
 
-    Optional<SprintBacklog> getSprintBacklogById(Long id);
+    Optional<SprintBacklogDTO> getSprintBacklogById(Long id);
 
-    List<SprintBacklog> getAllSprintBacklogs();
+    List<SprintBacklogDTO> getAllSprintBacklogs();
 
     // Modified method to get sprint backlogs by product backlog
-    List<SprintBacklog> getSprintBacklogsByProductBacklogId(Integer productBacklogId);
+    List<SprintBacklogDTO> getSprintBacklogsByProductBacklogId(Integer productBacklogId);
 
-    SprintBacklog updateSprintBacklog(Long id, String title);
+    SprintBacklogDTO updateSprintBacklog(Long id, String title);
 
     void deleteSprintBacklog(Long id);
 
     // Méthodes pour gérer les User Stories dans un Sprint Backlog
-    SprintBacklog addUserStoryToSprintBacklog(Long sprintBacklogId, Long userStoryId);
+    SprintBacklogDTO addUserStoryToSprintBacklog(Long sprintBacklogId, Long userStoryId);
 
-    SprintBacklog removeUserStoryFromSprintBacklog(Long sprintBacklogId, Long userStoryId);
+    SprintBacklogDTO removeUserStoryFromSprintBacklog(Long sprintBacklogId, Long userStoryId);
 
     List<UserStory> getUserStoriesInSprintBacklog(Long sprintBacklogId);
 
@@ -50,7 +50,7 @@ public interface SprintBacklogService {
     double calculateSprintProgress(Long sprintBacklogId);
 
     // Modified methods for product backlog relationship
-    SprintBacklog assignSprintBacklogToProductBacklog(Long sprintBacklogId, Integer productBacklogId);
+    SprintBacklogDTO assignSprintBacklogToProductBacklog(Long sprintBacklogId, Integer productBacklogId);
 
-    SprintBacklog removeSprintBacklogFromProductBacklog(Long sprintBacklogId);
+    SprintBacklogDTO removeSprintBacklogFromProductBacklog(Long sprintBacklogId);
 }

@@ -16,5 +16,5 @@ public class SprintBacklogDTO {
     private String title;
     private List<Long> userStoryIds;
     private List<Long> sprintIds;
-    private Long productBacklogId;
+    private Integer productBacklogId;
 }

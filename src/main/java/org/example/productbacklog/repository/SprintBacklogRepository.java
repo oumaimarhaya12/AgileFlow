@@ -1,5 +1,6 @@
 package org.example.productbacklog.repository;
 
+import org.example.productbacklog.entity.ProductBacklog;
 import org.example.productbacklog.entity.SprintBacklog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -23,4 +24,8 @@ public interface SprintBacklogRepository extends JpaRepository<SprintBacklog, Lo
     // Méthode pour trouver les sprint backlogs qui ont des user stories avec un statut spécifique
     @Query("SELECT DISTINCT sb FROM SprintBacklog sb JOIN sb.userStories us WHERE us.status = :status")
     List<SprintBacklog> findByUserStoriesStatus(org.example.productbacklog.entity.Statut status);
-}
+
+    // Find sprint backlogs by product backlog
+    List<SprintBacklog> findByProductBacklog(ProductBacklog productBacklog);
+
+    }

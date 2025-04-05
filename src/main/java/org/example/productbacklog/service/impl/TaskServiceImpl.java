@@ -1,6 +1,8 @@
 package org.example.productbacklog.service.impl;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.example.productbacklog.converter.TaskConverter;
+import org.example.productbacklog.dto.TaskDTO;
 import org.example.productbacklog.entity.Comment;
 import org.example.productbacklog.entity.Task;
 import org.example.productbacklog.entity.User;
@@ -25,32 +27,38 @@ public class TaskServiceImpl implements TaskService {
     private final UserRepository userRepository;
     private final UserStoryRepository userStoryRepository;
     private final CommentRepository commentRepository;
+    private final TaskConverter taskConverter;
 
     @Autowired
     public TaskServiceImpl(TaskRepository taskRepository,
                            UserRepository userRepository,
                            UserStoryRepository userStoryRepository,
-                           CommentRepository commentRepository) {
+                           CommentRepository commentRepository,
+                           TaskConverter taskConverter) {
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
         this.userStoryRepository = userStoryRepository;
         this.commentRepository = commentRepository;
+        this.taskConverter = taskConverter;
     }
 
     @Override
     @Transactional
-    public Task createTask(String title, String description, Task.TaskStatus status,
-                           LocalDateTime dueDate, int priority, int estimatedHours,
-                           UserStory userStory, User assignedUser) {
+    public TaskDTO createTask(String title, String description, Task.TaskStatus status,
+                              LocalDateTime dueDate, int priority, int estimatedHours,
+                              Long userStoryId, Long assignedUserId) {
 
-        if (userStory != null && userStory.getId() != null) {
-            userStoryRepository.findById(userStory.getId())
-                    .orElseThrow(() -> new EntityNotFoundException("UserStory not found with id: " + userStory.getId()));
+        UserStory userStory = null;
+        User assignedUser = null;
+
+        if (userStoryId != null) {
+            userStory = userStoryRepository.findById(userStoryId)
+                    .orElseThrow(() -> new EntityNotFoundException("UserStory not found with id: " + userStoryId));
         }
 
-        if (assignedUser != null && assignedUser.getId() != null) {
-            userRepository.findById(assignedUser.getId())
-                    .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + assignedUser.getId()));
+        if (assignedUserId != null) {
+            assignedUser = userRepository.findById(assignedUserId)
+                    .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + assignedUserId));
         }
 
         Task task = Task.builder()
@@ -65,38 +73,44 @@ public class TaskServiceImpl implements TaskService {
                 .assignedUser(assignedUser)
                 .build();
 
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+        return taskConverter.convertToDTO(savedTask);
     }
 
     @Override
-    public Optional<Task> findById(Long id) {
-        return taskRepository.findById(id);
+    public Optional<TaskDTO> findById(Long id) {
+        return taskRepository.findById(id)
+                .map(taskConverter::convertToDTO);
     }
 
     @Override
-    public List<Task> findAll() {
-        return taskRepository.findAll();
+    public List<TaskDTO> findAll() {
+        List<Task> tasks = taskRepository.findAll();
+        return taskConverter.convertToDTOList(tasks);
     }
 
     @Override
-    public List<Task> findByUserStory(UserStory userStory) {
-        return taskRepository.findByUserStory(userStory);
+    public List<TaskDTO> findByUserStoryId(Long userStoryId) {
+        List<Task> tasks = taskRepository.findByUserStoryId(userStoryId);
+        return taskConverter.convertToDTOList(tasks);
     }
 
     @Override
-    public List<Task> findByAssignedUser(User user) {
-        return taskRepository.findByAssignedUser(user);
+    public List<TaskDTO> findByAssignedUserId(Long userId) {
+        List<Task> tasks = taskRepository.findByAssignedUserId(userId);
+        return taskConverter.convertToDTOList(tasks);
     }
 
     @Override
-    public List<Task> findByStatus(Task.TaskStatus status) {
-        return taskRepository.findByStatus(status);
+    public List<TaskDTO> findByStatus(Task.TaskStatus status) {
+        List<Task> tasks = taskRepository.findByStatus(status);
+        return taskConverter.convertToDTOList(tasks);
     }
 
     @Override
     @Transactional
-    public Task updateTask(Long id, String title, String description, Task.TaskStatus status,
-                           LocalDateTime dueDate, int priority, int estimatedHours) {
+    public TaskDTO updateTask(Long id, String title, String description, Task.TaskStatus status,
+                              LocalDateTime dueDate, int priority, int estimatedHours) {
 
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + id));
@@ -120,12 +134,13 @@ public class TaskServiceImpl implements TaskService {
             task.setEstimatedHours(estimatedHours);
         }
 
-        return taskRepository.save(task);
+        Task updatedTask = taskRepository.save(task);
+        return taskConverter.convertToDTO(updatedTask);
     }
 
     @Override
     @Transactional
-    public Task assignTaskToUser(Long taskId, Long userId) {
+    public TaskDTO assignTaskToUser(Long taskId, Long userId) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + taskId));
 
@@ -133,12 +148,13 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
 
         task.setAssignedUser(user);
-        return taskRepository.save(task);
+        Task updatedTask = taskRepository.save(task);
+        return taskConverter.convertToDTO(updatedTask);
     }
 
     @Override
     @Transactional
-    public Task logHours(Long taskId, int hours) {
+    public TaskDTO logHours(Long taskId, int hours) {
         if (hours <= 0) {
             throw new IllegalArgumentException("Hours must be greater than zero");
         }
@@ -147,17 +163,19 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + taskId));
 
         task.setLoggedHours(task.getLoggedHours() + hours);
-        return taskRepository.save(task);
+        Task updatedTask = taskRepository.save(task);
+        return taskConverter.convertToDTO(updatedTask);
     }
 
     @Override
     @Transactional
-    public Task updateStatus(Long taskId, Task.TaskStatus status) {
+    public TaskDTO updateStatus(Long taskId, Task.TaskStatus status) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + taskId));
 
         task.setStatus(status);
-        return taskRepository.save(task);
+        Task updatedTask = taskRepository.save(task);
+        return taskConverter.convertToDTO(updatedTask);
     }
 
     @Override
@@ -171,7 +189,7 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional
-    public Task addComment(Long taskId, Long userId, String content) {
+    public TaskDTO addComment(Long taskId, Long userId, String content) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + taskId));
 
@@ -191,6 +209,7 @@ public class TaskServiceImpl implements TaskService {
         comments.add(comment);
         task.setComments(comments);
 
-        return taskRepository.save(task);
+        Task updatedTask = taskRepository.save(task);
+        return taskConverter.convertToDTO(updatedTask);
     }
 }

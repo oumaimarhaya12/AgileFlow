@@ -2,7 +2,7 @@ package org.example.productbacklog.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.example.productbacklog.entity.SprintBacklog;
+import org.example.productbacklog.dto.SprintBacklogDTO;
 import org.example.productbacklog.entity.Task;
 import org.example.productbacklog.entity.UserStory;
 import org.example.productbacklog.service.SprintBacklogService;
@@ -25,25 +25,27 @@ public class SprintBacklogController {
 
     @PostMapping("/create")
     @Operation(summary = "Créer un Sprint Backlog")
-    public ResponseEntity<SprintBacklog> createSprintBacklog(@RequestParam String title) {
+    public ResponseEntity<SprintBacklogDTO> createSprintBacklog(@RequestParam String title) {
         return ResponseEntity.ok(sprintBacklogService.createSprintBacklog(title));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtenir un Sprint Backlog par ID")
-    public ResponseEntity<Optional<SprintBacklog>> getSprintBacklogById(@PathVariable Long id) {
-        return ResponseEntity.ok(sprintBacklogService.getSprintBacklogById(id));
+    public ResponseEntity<SprintBacklogDTO> getSprintBacklogById(@PathVariable Long id) {
+        Optional<SprintBacklogDTO> sprintBacklog = sprintBacklogService.getSprintBacklogById(id);
+        return sprintBacklog.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/all")
     @Operation(summary = "Obtenir tous les Sprint Backlogs")
-    public ResponseEntity<List<SprintBacklog>> getAllSprintBacklogs() {
+    public ResponseEntity<List<SprintBacklogDTO>> getAllSprintBacklogs() {
         return ResponseEntity.ok(sprintBacklogService.getAllSprintBacklogs());
     }
 
     @PutMapping("/update/{id}")
     @Operation(summary = "Mettre à jour un Sprint Backlog")
-    public ResponseEntity<SprintBacklog> updateSprintBacklog(@PathVariable Long id, @RequestParam String title) {
+    public ResponseEntity<SprintBacklogDTO> updateSprintBacklog(@PathVariable Long id, @RequestParam String title) {
         return ResponseEntity.ok(sprintBacklogService.updateSprintBacklog(id, title));
     }
 
@@ -56,7 +58,7 @@ public class SprintBacklogController {
 
     @PostMapping("/{sprintBacklogId}/add-user-story/{userStoryId}")
     @Operation(summary = "Ajouter une User Story à un Sprint Backlog")
-    public ResponseEntity<SprintBacklog> addUserStoryToSprintBacklog(@PathVariable Long sprintBacklogId, @PathVariable Long userStoryId) {
+    public ResponseEntity<SprintBacklogDTO> addUserStoryToSprintBacklog(@PathVariable Long sprintBacklogId, @PathVariable Long userStoryId) {
         return ResponseEntity.ok(sprintBacklogService.addUserStoryToSprintBacklog(sprintBacklogId, userStoryId));
     }
 

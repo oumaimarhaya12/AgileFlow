@@ -1,5 +1,7 @@
 package org.example.productbacklog.service.impl;
 
+import org.example.productbacklog.converter.SprintBacklogConverter;
+import org.example.productbacklog.dto.SprintBacklogDTO;
 import org.example.productbacklog.entity.SprintBacklog;
 import org.example.productbacklog.entity.Statut;
 import org.example.productbacklog.entity.Task;
@@ -26,31 +28,35 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
     private final SprintBacklogRepository sprintBacklogRepository;
     private final UserStoryRepository userStoryRepository;
     private final ProductBacklogRepository productBacklogRepository;
+    private final SprintBacklogConverter sprintBacklogConverter;
 
     @Autowired
     public SprintBacklogServiceImpl(SprintBacklogRepository sprintBacklogRepository,
                                     UserStoryRepository userStoryRepository,
-                                    ProductBacklogRepository productBacklogRepository) {
+                                    ProductBacklogRepository productBacklogRepository,
+                                    SprintBacklogConverter sprintBacklogConverter) {
         this.sprintBacklogRepository = sprintBacklogRepository;
         this.userStoryRepository = userStoryRepository;
         this.productBacklogRepository = productBacklogRepository;
+        this.sprintBacklogConverter = sprintBacklogConverter;
     }
 
     @Override
     @Transactional
-    public SprintBacklog createSprintBacklog(String title) {
+    public SprintBacklogDTO createSprintBacklog(String title) {
         if (title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("Le titre du Sprint Backlog ne peut pas être vide");
         }
 
         SprintBacklog sprintBacklog = new SprintBacklog();
         sprintBacklog.setTitle(title);
-        return sprintBacklogRepository.save(sprintBacklog);
+        SprintBacklog savedSprintBacklog = sprintBacklogRepository.save(sprintBacklog);
+        return sprintBacklogConverter.convertToDTO(savedSprintBacklog);
     }
 
     @Override
     @Transactional
-    public SprintBacklog createSprintBacklog(String title, Integer productBacklogId) {
+    public SprintBacklogDTO createSprintBacklog(String title, Integer productBacklogId) {
         if (title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("Le titre du Sprint Backlog ne peut pas être vide");
         }
@@ -68,33 +74,36 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
         productBacklog.getSprintBacklogs().add(savedSprintBacklog);
         productBacklogRepository.save(productBacklog);
 
-        return savedSprintBacklog;
+        return sprintBacklogConverter.convertToDTO(savedSprintBacklog);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<SprintBacklog> getSprintBacklogById(Long id) {
-        return sprintBacklogRepository.findById(id);
+    public Optional<SprintBacklogDTO> getSprintBacklogById(Long id) {
+        return sprintBacklogRepository.findById(id)
+                .map(sprintBacklogConverter::convertToDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<SprintBacklog> getAllSprintBacklogs() {
-        return sprintBacklogRepository.findAllByOrderByIdDesc();
+    public List<SprintBacklogDTO> getAllSprintBacklogs() {
+        List<SprintBacklog> sprintBacklogs = sprintBacklogRepository.findAllByOrderByIdDesc();
+        return sprintBacklogConverter.convertToDTOList(sprintBacklogs);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<SprintBacklog> getSprintBacklogsByProductBacklogId(Integer productBacklogId) {
+    public List<SprintBacklogDTO> getSprintBacklogsByProductBacklogId(Integer productBacklogId) {
         ProductBacklog productBacklog = productBacklogRepository.findById(productBacklogId)
                 .orElseThrow(() -> new EntityNotFoundException("Product Backlog not found with ID: " + productBacklogId));
 
-        return productBacklog.getSprintBacklogs();
+        List<SprintBacklog> sprintBacklogs = productBacklog.getSprintBacklogs();
+        return sprintBacklogConverter.convertToDTOList(sprintBacklogs);
     }
 
     @Override
     @Transactional
-    public SprintBacklog updateSprintBacklog(Long id, String title) {
+    public SprintBacklogDTO updateSprintBacklog(Long id, String title) {
         SprintBacklog sprintBacklog = sprintBacklogRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog non trouvé avec l'ID: " + id));
 
@@ -102,7 +111,8 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
             sprintBacklog.setTitle(title);
         }
 
-        return sprintBacklogRepository.save(sprintBacklog);
+        SprintBacklog updatedSprintBacklog = sprintBacklogRepository.save(sprintBacklog);
+        return sprintBacklogConverter.convertToDTO(updatedSprintBacklog);
     }
 
     @Override
@@ -129,7 +139,7 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
 
     @Override
     @Transactional
-    public SprintBacklog addUserStoryToSprintBacklog(Long sprintBacklogId, Long userStoryId) {
+    public SprintBacklogDTO addUserStoryToSprintBacklog(Long sprintBacklogId, Long userStoryId) {
         SprintBacklog sprintBacklog = sprintBacklogRepository.findById(sprintBacklogId)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog non trouvé avec l'ID: " + sprintBacklogId));
 
@@ -140,12 +150,13 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
         userStoryRepository.save(userStory);
 
         // Rafraîchir le sprint backlog pour obtenir les changements
-        return sprintBacklogRepository.findById(sprintBacklogId).orElseThrow();
+        SprintBacklog updatedSprintBacklog = sprintBacklogRepository.findById(sprintBacklogId).orElseThrow();
+        return sprintBacklogConverter.convertToDTO(updatedSprintBacklog);
     }
 
     @Override
     @Transactional
-    public SprintBacklog removeUserStoryFromSprintBacklog(Long sprintBacklogId, Long userStoryId) {
+    public SprintBacklogDTO removeUserStoryFromSprintBacklog(Long sprintBacklogId, Long userStoryId) {
         SprintBacklog sprintBacklog = sprintBacklogRepository.findById(sprintBacklogId)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog non trouvé avec l'ID: " + sprintBacklogId));
 
@@ -159,7 +170,8 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
         }
 
         // Rafraîchir le sprint backlog pour obtenir les changements
-        return sprintBacklogRepository.findById(sprintBacklogId).orElseThrow();
+        SprintBacklog updatedSprintBacklog = sprintBacklogRepository.findById(sprintBacklogId).orElseThrow();
+        return sprintBacklogConverter.convertToDTO(updatedSprintBacklog);
     }
 
     @Override
@@ -264,7 +276,7 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
 
     @Override
     @Transactional
-    public SprintBacklog assignSprintBacklogToProductBacklog(Long sprintBacklogId, Integer productBacklogId) {
+    public SprintBacklogDTO assignSprintBacklogToProductBacklog(Long sprintBacklogId, Integer productBacklogId) {
         SprintBacklog sprintBacklog = sprintBacklogRepository.findById(sprintBacklogId)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog non trouvé avec l'ID: " + sprintBacklogId));
 
@@ -283,12 +295,13 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
         productBacklog.getSprintBacklogs().add(sprintBacklog);
 
         productBacklogRepository.save(productBacklog);
-        return sprintBacklogRepository.save(sprintBacklog);
+        SprintBacklog updatedSprintBacklog = sprintBacklogRepository.save(sprintBacklog);
+        return sprintBacklogConverter.convertToDTO(updatedSprintBacklog);
     }
 
     @Override
     @Transactional
-    public SprintBacklog removeSprintBacklogFromProductBacklog(Long sprintBacklogId) {
+    public SprintBacklogDTO removeSprintBacklogFromProductBacklog(Long sprintBacklogId) {
         SprintBacklog sprintBacklog = sprintBacklogRepository.findById(sprintBacklogId)
                 .orElseThrow(() -> new EntityNotFoundException("Sprint Backlog non trouvé avec l'ID: " + sprintBacklogId));
 
@@ -298,9 +311,10 @@ public class SprintBacklogServiceImpl implements SprintBacklogService {
             productBacklogRepository.save(productBacklog);
 
             sprintBacklog.setProductBacklog(null);
-            return sprintBacklogRepository.save(sprintBacklog);
+            SprintBacklog updatedSprintBacklog = sprintBacklogRepository.save(sprintBacklog);
+            return sprintBacklogConverter.convertToDTO(updatedSprintBacklog);
         }
 
-        return sprintBacklog;
+        return sprintBacklogConverter.convertToDTO(sprintBacklog);
     }
 }
