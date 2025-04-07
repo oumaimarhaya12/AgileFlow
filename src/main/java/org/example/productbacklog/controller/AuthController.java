@@ -10,6 +10,7 @@ import org.example.productbacklog.payload.response.MessageResponse;
 import org.example.productbacklog.security.jwt.JwtUtil;
 import org.example.productbacklog.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -37,9 +38,9 @@ public class AuthController {
     private UserConverter userConverter;
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-        // Get user by email first
-        Optional<UserDTO> userDTOOpt = userService.getUserByEmail(loginRequest.getEmail());
+    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+        // Get user by email first (assuming username is the email)
+        Optional<UserDTO> userDTOOpt = userService.getUserByUsername(loginRequest.getUsername());
 
         if (!userDTOOpt.isPresent()) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: User not found"));
@@ -51,14 +52,23 @@ public class AuthController {
         User user = userConverter.convertToEntity(userDTO);
 
         // Authenticate with username and password
-        // Spring Security still needs username for authentication
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getUsername(), loginRequest.getPassword()));
+                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+
+
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = jwtUtil.generateToken(user);
-
+        // Vérifie si le JWT est bien généré
+        if (jwt == null || jwt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new MessageResponse("Error: Token generation failed"));
+        }
         return ResponseEntity.ok(new JwtResponse(
                 jwt,
                 userDTO.getId(),

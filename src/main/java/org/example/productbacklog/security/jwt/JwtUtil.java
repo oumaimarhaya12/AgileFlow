@@ -2,7 +2,6 @@ package org.example.productbacklog.security.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import org.example.productbacklog.dto.UserDTO;
 import org.example.productbacklog.entity.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,22 +26,12 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
-    // Keep this method for backward compatibility
+    // Méthode pour générer un token basé sur le nom d'utilisateur et le mot de passe
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
-        claims.put("userId", user.getId());
 
-        return createToken(claims, user.getUsername());
-    }
-
-    // Add a new method for UserDTO
-    public String generateToken(UserDTO userDTO) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("role", userDTO.getRole().name());
-        claims.put("userId", userDTO.getId());
-
-        return createToken(claims, userDTO.getUsername());
+        return createToken(claims, user.getUsername());  // Utilise le username au lieu de l'email
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
@@ -53,7 +42,7 @@ public class JwtUtil {
 
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(subject)
+                .setSubject(subject)  // Utilise le nom d'utilisateur (username)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key)
@@ -89,12 +78,11 @@ public class JwtUtil {
     }
 
     public Boolean validateToken(String token, UserDetails userDetails) {
-        try {
-            final String username = extractUsername(token);
-            return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
-        } catch (JwtException | IllegalArgumentException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
-            return false;
-        }
+        final String username = extractUsername(token);
+        logger.info("Token username: {}", username);
+        logger.info("UserDetails username: {}", userDetails.getUsername());
+
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));  // Vérifie que le nom d'utilisateur est le même
+
     }
 }

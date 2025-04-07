@@ -56,7 +56,7 @@ public class JwtUtilTest {
     @Test
     void generateToken_WithDTO_ShouldCreateValidToken() {
         // Act
-        String token = jwtUtil.generateToken(testUserDTO);
+        String token = jwtUtil.generateToken(testUser);
 
         // Assert
         assertNotNull(token);

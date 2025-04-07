@@ -41,29 +41,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
             try {
-                username = jwtUtil.extractUsername(jwt);
+                username = jwtUtil.extractUsername(jwt);  // Extraire le nom d'utilisateur
+                logger.info("Extracted username: {}", username);
             } catch (Exception e) {
                 logger.error("Error processing JWT token", e);
-                // Just continue with null username, which will skip authentication
+                // Continue even if there's an error extracting the username
             }
         }
 
+        // Si un nom d'utilisateur a été extrait et qu'il n'est pas déjà authentifié
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+                UserDetails userDetails =userDetailsService.loadUserByUsername(username);
 
                 if (jwtUtil.validateToken(jwt, userDetails)) {
+                    logger.info("Token is valid for user: {}", username);
+
+                    // Créer un objet d'authentification et le définir dans le SecurityContext
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    logger.info("User authenticated successfully: {}", username);
+                } else {
+                    logger.warn("Invalid token for user: {}", username);
                 }
             } catch (Exception e) {
                 logger.error("Error authenticating user", e);
-                // Skip authentication on error
+                // Continue with request processing even if authentication fails
             }
         }
 
         filterChain.doFilter(request, response);
     }
 }
+

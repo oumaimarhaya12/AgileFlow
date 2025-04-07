@@ -72,7 +72,7 @@ public class AuthControllerTest {
         testUserDTO.setRole(User.Role.DEVELOPER);
 
         loginRequest = new LoginRequest();
-        loginRequest.setEmail("test@example.com");
+        loginRequest.setUsername("testuser");
         loginRequest.setPassword("password123");
 
         signupRequest = new SignupRequest();

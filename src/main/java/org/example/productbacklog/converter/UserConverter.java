@@ -6,12 +6,15 @@ import org.example.productbacklog.entity.Project;
 import org.example.productbacklog.entity.Task;
 import org.example.productbacklog.entity.User;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
 public class UserConverter {
+    private static final Logger log = LoggerFactory.getLogger(UserConverter.class);
 
     /**
      * Converts a User entity to a UserDTO
@@ -79,6 +82,9 @@ public class UserConverter {
         if (dto == null) {
             return null;
         }
+
+        log.info("Converting UserDTO to User: ID={}, Username={}, Email={}",
+                dto.getId(), dto.getUsername(), dto.getEmail());
 
         return User.builder()
                 .id(dto.getId())

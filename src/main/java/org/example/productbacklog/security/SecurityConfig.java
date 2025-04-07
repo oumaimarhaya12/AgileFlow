@@ -36,6 +36,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/api/auth/**").permitAll()
+                                .requestMatchers("/api/users?").permitAll()
                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                 .requestMatchers("/api/product-owner/**").hasRole("PRODUCT_OWNER")
                                 .requestMatchers("/api/scrum-master/**").hasRole("SCRUM_MASTER")

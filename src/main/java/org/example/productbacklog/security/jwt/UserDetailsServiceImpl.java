@@ -1,47 +1,36 @@
 package org.example.productbacklog.security.jwt;
 
-import org.example.productbacklog.converter.UserConverter;
-import org.example.productbacklog.dto.UserDTO;
 import org.example.productbacklog.entity.User;
 import org.example.productbacklog.repository.UserRepository;
-import org.example.productbacklog.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
-import java.util.Optional;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
 
-    @Autowired
-    @Lazy // Add @Lazy here to break the circular dependency
-    private UserService userService;
+    private static final Logger logger = LoggerFactory.getLogger(UserDetailsServiceImpl.class);
 
     @Autowired
-    private UserConverter userConverter;
+    private UserRepository userRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        // Try to find user by email first
-        Optional<UserDTO> userDTO = userService.getUserByEmail(usernameOrEmail);
+    @Transactional
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        logger.info("Authenticating user with username: {}", username);
 
-        if (!userDTO.isPresent()) {
-            // If not found by email, try by username
-            userDTO = userService.getUserByUsername(usernameOrEmail);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username: " + username));
 
-            if (!userDTO.isPresent()) {
-                throw new UsernameNotFoundException("User not found with email or username: " + usernameOrEmail);
-            }
-        }
-
-        // Convert DTO to entity to get the password
-        User user = userConverter.convertToEntity(userDTO.get());
+        logger.info("User found: {} (ID: {})", user.getUsername(), user.getId());
 
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
