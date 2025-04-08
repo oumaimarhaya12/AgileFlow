@@ -2,6 +2,7 @@ package org.example.productbacklog.security.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import org.example.productbacklog.entity.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +27,11 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
-    // Méthode pour générer un token basé sur le nom d'utilisateur et le mot de passe
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
 
-        return createToken(claims, user.getUsername());  // Utilise le username au lieu de l'email
+        return createToken(claims, user.getUsername());
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
@@ -42,7 +42,7 @@ public class JwtUtil {
 
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(subject)  // Utilise le nom d'utilisateur (username)
+                .setSubject(subject)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key)
@@ -73,16 +73,39 @@ public class JwtUtil {
     }
 
     private Boolean isTokenExpired(String token) {
-        final Date expiration = extractExpiration(token);
-        return expiration.before(new Date());
+        try {
+            final Date expiration = extractExpiration(token);
+            return expiration.before(new Date());
+        } catch (ExpiredJwtException e) {
+            return true;
+        }
     }
 
     public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        logger.info("Token username: {}", username);
-        logger.info("UserDetails username: {}", userDetails.getUsername());
+        try {
+            final String username = extractUsername(token);
+            logger.info("Token username: {}", username);
+            logger.info("UserDetails username: {}", userDetails.getUsername());
 
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));  // Vérifie que le nom d'utilisateur est le même
-
+            return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        } catch (SignatureException e) {
+            logger.error("Invalid JWT signature: {}", e.getMessage());
+            return false;
+        } catch (MalformedJwtException e) {
+            logger.error("Invalid JWT token: {}", e.getMessage());
+            return false;
+        } catch (ExpiredJwtException e) {
+            logger.error("JWT token is expired: {}", e.getMessage());
+            return false;
+        } catch (UnsupportedJwtException e) {
+            logger.error("JWT token is unsupported: {}", e.getMessage());
+            return false;
+        } catch (IllegalArgumentException e) {
+            logger.error("JWT claims string is empty: {}", e.getMessage());
+            return false;
+        } catch (Exception e) {
+            logger.error("JWT validation error: {}", e.getMessage());
+            return false;
+        }
     }
 }

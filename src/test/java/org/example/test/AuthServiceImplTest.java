@@ -1,7 +1,5 @@
 package org.example.test;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.example.productbacklog.controller.AuthController;
+
 import org.example.productbacklog.converter.UserConverter;
 import org.example.productbacklog.dto.UserDTO;
 import org.example.productbacklog.entity.User;
@@ -11,12 +9,16 @@ import org.example.productbacklog.payload.response.JwtResponse;
 import org.example.productbacklog.payload.response.MessageResponse;
 import org.example.productbacklog.security.jwt.JwtUtil;
 import org.example.productbacklog.service.UserService;
+import org.example.productbacklog.service.impl.AuthServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -30,7 +32,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-public class AuthControllerTest {
+public class AuthServiceImplTest {
 
     @Mock
     private AuthenticationManager authenticationManager;
@@ -48,7 +50,7 @@ public class AuthControllerTest {
     private Authentication authentication;
 
     @InjectMocks
-    private AuthController authController;
+    private AuthServiceImpl authService;
 
     private User testUser;
     private UserDTO testUserDTO;
@@ -81,18 +83,19 @@ public class AuthControllerTest {
         signupRequest.setPassword("newpassword");
         signupRequest.setRole(User.Role.DEVELOPER);
 
-        lenient().when(userConverter.convertToEntity(testUserDTO)).thenReturn(testUser);
+        when(userConverter.convertToEntity(testUserDTO)).thenReturn(testUser);
     }
 
     @Test
     void authenticateUser_WithValidCredentials_ShouldReturnJwtResponse() {
-        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUserDTO));
+        when(userService.getUserByUsername("testuser")).thenReturn(Optional.of(testUserDTO));
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
         when(jwtUtil.generateToken(testUser)).thenReturn("jwtToken");
 
-        ResponseEntity<?> response = authController.authenticateUser(loginRequest);
+        ResponseEntity<?> response = authService.authenticateUser(loginRequest);
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody() instanceof JwtResponse);
         JwtResponse jwtResponse = (JwtResponse) response.getBody();
 
@@ -105,10 +108,11 @@ public class AuthControllerTest {
 
     @Test
     void authenticateUser_WithUserNotFound_ShouldReturnErrorResponse() {
-        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.empty());
+        when(userService.getUserByUsername("testuser")).thenReturn(Optional.empty());
 
-        ResponseEntity<?> response = authController.authenticateUser(loginRequest);
+        ResponseEntity<?> response = authService.authenticateUser(loginRequest);
 
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody() instanceof MessageResponse);
         MessageResponse messageResponse = (MessageResponse) response.getBody();
 
@@ -116,12 +120,29 @@ public class AuthControllerTest {
     }
 
     @Test
+    void authenticateUser_WithTokenGenerationFailure_ShouldReturnErrorResponse() {
+        when(userService.getUserByUsername("testuser")).thenReturn(Optional.of(testUserDTO));
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(authentication);
+        when(jwtUtil.generateToken(testUser)).thenReturn("");
+
+        ResponseEntity<?> response = authService.authenticateUser(loginRequest);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertTrue(response.getBody() instanceof MessageResponse);
+        MessageResponse messageResponse = (MessageResponse) response.getBody();
+
+        assertEquals("Error: Token generation failed", messageResponse.getMessage());
+    }
+
+    @Test
     void registerUser_WithValidRequest_ShouldRegisterSuccessfully() {
         when(userService.isUsernameAvailable("newuser")).thenReturn(true);
         when(userService.isEmailAvailable("new@example.com")).thenReturn(true);
 
-        ResponseEntity<?> response = authController.registerUser(signupRequest);
+        ResponseEntity<?> response = authService.registerUser(signupRequest);
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody() instanceof MessageResponse);
         MessageResponse messageResponse = (MessageResponse) response.getBody();
 
@@ -133,8 +154,9 @@ public class AuthControllerTest {
     void registerUser_WithUsernameTaken_ShouldReturnErrorResponse() {
         when(userService.isUsernameAvailable("newuser")).thenReturn(false);
 
-        ResponseEntity<?> response = authController.registerUser(signupRequest);
+        ResponseEntity<?> response = authService.registerUser(signupRequest);
 
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody() instanceof MessageResponse);
         MessageResponse messageResponse = (MessageResponse) response.getBody();
 
@@ -147,8 +169,9 @@ public class AuthControllerTest {
         when(userService.isUsernameAvailable("newuser")).thenReturn(true);
         when(userService.isEmailAvailable("new@example.com")).thenReturn(false);
 
-        ResponseEntity<?> response = authController.registerUser(signupRequest);
+        ResponseEntity<?> response = authService.registerUser(signupRequest);
 
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody() instanceof MessageResponse);
         MessageResponse messageResponse = (MessageResponse) response.getBody();
 
@@ -158,26 +181,14 @@ public class AuthControllerTest {
 
     @Test
     void authenticateUser_WithAuthenticationException_ShouldPropagateException() {
-        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUserDTO));
+        when(userService.getUserByUsername("testuser")).thenReturn(Optional.of(testUserDTO));
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new RuntimeException("Authentication failed"));
 
         assertThrows(RuntimeException.class, () -> {
-            authController.authenticateUser(loginRequest);
+            authService.authenticateUser(loginRequest);
         });
 
         verify(jwtUtil, never()).generateToken(any(User.class));
-    }
-
-    @Test
-    void authenticateUser_ShouldSetSecurityContext() {
-        when(userService.getUserByEmail("test@example.com")).thenReturn(Optional.of(testUserDTO));
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
-        when(jwtUtil.generateToken(testUser)).thenReturn("jwtToken");
-
-        authController.authenticateUser(loginRequest);
-
-        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
     }
 }
